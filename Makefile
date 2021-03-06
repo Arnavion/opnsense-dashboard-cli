@@ -9,7 +9,7 @@ build:
 	cargo build --release
 
 install: build
-	cp -f target/release/pfsense-dashboard ~/bin/
+	cp -f target/release/opnsense-dashboard ~/bin/
 
 test:
 	cargo test --all

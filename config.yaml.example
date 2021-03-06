@@ -4,9 +4,9 @@ ssh:
 
   # The username to use to ssh to the router.
   #
-  # Note that you need to ssh as `root` if you want to have the program to show the firewall logs,
-  # since the firewall log file is owned by `root:wheel` by default. If you don't need the firewall logs,
-  # remove that part of the program, and change this to any limited user with shell access instead.
+  # Note that you need to ssh as `root` if you want to have the program to show `smartctl` output
+  # (because `smartctl` requires `root`) or the firewall logs (since the firewall log file is only readable by `root`).
+  # If you don't need either of those, remove those part of the program, and change this to any limited user with shell access instead.
   username: 'root'
 
 
@@ -14,17 +14,19 @@ ssh:
 services:
   # Built-in services to monitor.
   builtin:
+  - 'configd'
   - 'dhcpd'
+  - 'dhcpd6'
   - 'ntpd'
+  - 'openssh'
   - 'radvd'
-  - 'sshd'
+  - 'syslog-ng'
   - 'syslogd'
   - 'unbound'
 
-  # Custom services to monitor. The pidfile for each entry is optional.
-  #
-  # Services from installed packages will be automatically detected and should not be listed here.
+  # Custom services to monitor. Each entry must either have a `cmdline` or a `pidfile`.
   custom:
   - name: 'tayga'
-    executable: 'tayga'
-    pidfile: '/var/run/tayga.pid'
+    cmdline: '/usr/local/bin/tayga '
+  - name: 'haproxy'
+    pidfile: '/var/run/haproxy.pid'

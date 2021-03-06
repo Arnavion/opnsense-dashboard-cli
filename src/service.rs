@@ -6,10 +6,7 @@ pub(crate) struct Service {
 }
 
 impl Service {
-	pub(crate) fn get_all(
-		services: Option<crate::config::Services>,
-		installed_package_services: impl IntoIterator<Item = crate::pfconfig::Service>,
-	) -> Result<Box<[Self]>, crate::Error> {
+	pub(crate) fn get_all(services: Option<crate::config::Services>) -> Result<Box<[Self]>, crate::Error> {
 		let (builtin_services, custom_services) = match services {
 			Some(crate::config::Services { builtin, custom }) => (Some(builtin), Some(custom)),
 			None => (None, None),
@@ -19,31 +16,30 @@ impl Service {
 			builtin_services.into_iter()
 			.flatten()
 			.map(|name| -> Result<_, crate::Error> {
-				let (executable, pidfile) = match &*name {
-					"dhcpd" => ("dhcpd", None),
-					"ntpd" => ("ntpd", Some("/var/run/ntpd.pid")),
-					"radvd" => ("radvd", Some("/var/run/radvd.pid")),
-					"sshd" => ("sshd", Some("/var/run/sshd.pid")),
-					"syslogd" => ("syslogd", Some("/var/run/syslog.pid")),
-					"unbound" => ("unbound", Some("/var/run/unbound.pid")),
+				let monitor = match &*name {
+					"configd" => crate::config::ServiceMonitor::PidFile("/var/run/configd.pid".into()),
+					"dhcpd" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -user dhcpd ".into()),
+					"dhcpd6" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -6 -user dhcpd ".into()),
+					"ntpd" => crate::config::ServiceMonitor::PidFile("/var/run/ntpd.pid".into()),
+					"openssh" => crate::config::ServiceMonitor::PidFile("/var/run/sshd.pid".into()),
+					"radvd" => crate::config::ServiceMonitor::PidFile("/var/run/radvd.pid".into()),
+					"syslog-ng" => crate::config::ServiceMonitor::PidFile("/var/run/syslog-ng.pid".into()),
+					"syslogd" => crate::config::ServiceMonitor::PidFile("/var/run/syslog.pid".into()),
+					"unbound" => crate::config::ServiceMonitor::PidFile("/var/run/unbound.pid".into()),
 					name => return Err(format!("{:?} is not recognized as a built-in service", name).into()),
 				};
-				Ok((name, executable.to_owned(), pidfile.map(ToOwned::to_owned)))
+				Ok((name, monitor))
 			})
 			.chain(
 				custom_services.into_iter()
 				.flatten()
-				.map(|crate::config::CustomService { name, executable, pidfile }| Ok::<_, crate::Error>((name, executable, pidfile)))
-			)
-			.chain(
-				installed_package_services.into_iter()
-				.map(|crate::pfconfig::Service { name, executable }| Ok::<_, crate::Error>((name, executable, None)))
+				.map(|crate::config::CustomService { name, monitor }| Ok::<_, crate::Error>((name, monitor)))
 			)
 			.map(|service| {
-				let (name, executable, pidfile) = service?;
+				let (name, monitor) = service?;
 				Ok(Service {
 					name,
-					is_running_exec: crate::ssh_exec::pgrep::Exec::new(&executable, pidfile.as_ref().map(AsRef::as_ref)),
+					is_running_exec: crate::ssh_exec::pgrep::Exec::new(monitor),
 					is_running: false,
 				})
 			})

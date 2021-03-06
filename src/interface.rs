@@ -1,34 +1,30 @@
 #[derive(Debug)]
 pub(crate) struct Interfaces {
 	gateways: std::collections::BTreeMap<String, Interface>,
-	bridges: std::collections::BTreeMap<String, Interface>,
 	other: std::collections::BTreeMap<String, Interface>,
 }
 
 impl Interfaces {
-	pub(crate) fn new(gateways: impl IntoIterator<Item = String>, bridges: impl IntoIterator<Item = String>, other: impl IntoIterator<Item = String>) -> Self {
+	pub(crate) fn new(gateways: impl IntoIterator<Item = String>, other: impl IntoIterator<Item = String>) -> Self {
 		let make_pair = |name: String| { let interface = Interface::new(&name); (name, interface) };
 		Interfaces {
 			gateways: gateways.into_iter().map(make_pair).collect(),
-			bridges: bridges.into_iter().map(make_pair).collect(),
 			other: other.into_iter().map(make_pair).collect(),
 		}
 	}
 
-	pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (&'_ str, &'_ mut Interface, bool)> {
-		self.gateways.iter_mut().map(|(name, interface)| (name.as_ref(), interface, false))
-		.chain(self.bridges.iter_mut().map(|(name, interface)| (name.as_ref(), interface, true)))
-		.chain(self.other.iter_mut().map(|(name, interface)| (name.as_ref(), interface, false)))
+	pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (&'_ str, &'_ mut Interface)> {
+		self.gateways.iter_mut().map(|(name, interface)| (name.as_ref(), interface))
+		.chain(self.other.iter_mut().map(|(name, interface)| (name.as_ref(), interface)))
 	}
 
 	pub(crate) fn names(&self) -> impl Iterator<Item = &'_ str> {
 		self.gateways.keys().map(AsRef::as_ref)
-		.chain(self.bridges.keys().map(AsRef::as_ref))
 		.chain(self.other.keys().map(AsRef::as_ref))
 	}
 
 	pub(crate) fn update(&mut self, session: &ssh2::Session) -> Result<(), crate::Error> {
-		for (_, interface, _) in self.iter_mut() {
+		for (_, interface) in self.iter_mut() {
 			interface.addresses.clear();
 
 			interface.received_bytes_previous = interface.received_bytes;
@@ -44,12 +40,9 @@ impl Interfaces {
 
 		for interface_statistics in interface_statistics {
 			let interface_name = interface_statistics.name;
-			#[allow(clippy::option_if_let_else)]
+			#[allow(clippy::manual_map, clippy::option_if_let_else)]
 			let interface =
 				if let Some(interface) = self.gateways.get_mut(&interface_name) {
-					Some(interface)
-				}
-				else if let Some(interface) = self.bridges.get_mut(&interface_name) {
 					Some(interface)
 				}
 				else if let Some(interface) = self.other.get_mut(&interface_name) {

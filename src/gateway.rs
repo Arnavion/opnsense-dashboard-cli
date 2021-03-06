@@ -4,10 +4,10 @@ pub(crate) struct Gateways {
 }
 
 impl Gateways {
-	pub(crate) fn new(gateways: impl IntoIterator<Item = crate::pfconfig::Gateway>) -> Self {
+	pub(crate) fn new(gateways: impl IntoIterator<Item = crate::opnconfig::Gateway>) -> Self {
 		let gateways =
 			gateways.into_iter()
-			.map(|crate::pfconfig::Gateway { name }| (name, None))
+			.map(|crate::opnconfig::Gateway { name }| (name, None))
 			.collect();
 		Gateways {
 			gateways,

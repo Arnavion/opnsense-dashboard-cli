@@ -1,4 +1,4 @@
-#[derive(serde_derive::Deserialize)]
+#[derive(serde::Deserialize)]
 pub(crate) struct Config {
 	pub(crate) ssh: Ssh,
 
@@ -8,7 +8,7 @@ pub(crate) struct Config {
 impl Config {
 	pub(crate) fn load() -> Result<Self, crate::Error> {
 		let mut path = dirs::config_dir().ok_or("config dir not defined")?;
-		path.push("pfsense-dashboard");
+		path.push("opnsense-dashboard");
 		path.push("config.yaml");
 		let f = std::fs::File::open(path)?;
 		let result = serde_yaml::from_reader(f)?;
@@ -16,7 +16,7 @@ impl Config {
 	}
 }
 
-#[derive(serde_derive::Deserialize)]
+#[derive(serde::Deserialize)]
 pub(crate) struct Services {
 	#[serde(default)]
 	pub(crate) builtin: Vec<String>,
@@ -25,15 +25,23 @@ pub(crate) struct Services {
 	pub(crate) custom: Vec<CustomService>,
 }
 
-#[derive(serde_derive::Deserialize)]
+#[derive(serde::Deserialize)]
 pub(crate) struct Ssh {
 	pub(crate) hostname: String,
 	pub(crate) username: String,
 }
 
-#[derive(serde_derive::Deserialize)]
+#[derive(serde::Deserialize)]
 pub(crate) struct CustomService {
 	pub(crate) name: String,
-	pub(crate) executable: String,
-	pub(crate) pidfile: Option<String>,
+	#[serde(flatten)]
+	pub(crate) monitor: ServiceMonitor<'static>,
+}
+
+#[derive(serde::Deserialize)]
+pub(crate) enum ServiceMonitor<'a> {
+	#[serde(rename = "cmdline")]
+	CmdLine(std::borrow::Cow<'a, str>),
+	#[serde(rename = "pidfile")]
+	PidFile(std::borrow::Cow<'a, str>),
 }

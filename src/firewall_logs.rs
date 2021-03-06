@@ -50,7 +50,7 @@ pub(crate) struct Log {
 
 impl Log {
 	fn from_str(s: &str, interfaces: &std::collections::BTreeSet<String>) -> Result<Self, ()> {
-		// Ref: https://docs.netgate.com/pfsense/en/latest/monitoring/filter-log-format-for-pfsense-2-2.html
+		// Ref: https://docs.netgate.com/pfsense/en/latest/monitoring/logs/raw-filter-format.html
 
 		let timestamp = s.get(..("MMM dd HH:mm:ss".len())).ok_or(())?;
 

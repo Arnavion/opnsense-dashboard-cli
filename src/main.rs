@@ -2,17 +2,13 @@
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(
 	clippy::cast_precision_loss,
-	clippy::cognitive_complexity,
 	clippy::default_trait_access,
-	clippy::items_after_statements,
-	clippy::let_and_return,
-	clippy::let_unit_value,
-	clippy::similar_names,
+	clippy::let_underscore_drop,
 	clippy::too_many_lines,
 )]
 
 mod config;
-mod pfconfig;
+mod opnconfig;
 mod ssh_exec;
 
 mod boot_time;
@@ -66,21 +62,18 @@ fn main() -> Result<(), Error> {
 	let session = connect(&config.ssh.hostname, &config.ssh.username, Some(5000))?;
 
 
-	let pfconfig = pfconfig::PfConfig::load(&session)?;
+	let opnconfig = opnconfig::OpnConfig::load(&session)?;
 
 
 	stdout.write_all(b"\x1B[2J\x1B[1;1H\x1B[3J")?;
 
 	{
-		let version_info::VersionInfo { version, version_patch, arch, os_release_date, os_base_version } = version_info::VersionInfo::get(&session)?;
-		if version_patch == "0" {
-			writeln!(stdout, "Version       : {} ({})", version, arch)?;
-		}
-		else {
-			writeln!(stdout, "Version       : {}-p{} ({})", version, version_patch, arch)?;
-		}
-		writeln!(stdout, "                built on {}", os_release_date)?;
-		writeln!(stdout, "                based on {}", os_base_version)?;
+		let version_info::VersionInfo {
+			version: ssh_exec::version::Version { product_arch, product_name, product_version },
+			os_base_version,
+		} = version_info::VersionInfo::get(&session)?;
+		writeln!(stdout, "Version       : {} {}-{}", product_name, product_version, product_arch)?;
+		writeln!(stdout, "                {}", os_base_version)?;
 		writeln!(stdout)?;
 	}
 
@@ -105,19 +98,19 @@ fn main() -> Result<(), Error> {
 		.chain(disks.iter().map(|disk::Disk { name, .. }| name))
 		.map(String::len).max().unwrap_or_default();
 
-	let mut interfaces = interface::Interfaces::new(pfconfig.gateway_interfaces.iter().cloned(), pfconfig.bridge_interfaces, pfconfig.other_interfaces);
+	let mut interfaces = interface::Interfaces::new(opnconfig.gateway_interfaces.iter().cloned(), opnconfig.other_interfaces);
 	let max_interface_name_len = interfaces.names().map(str::len).max().unwrap_or_default();
 
-	let mut gateways = gateway::Gateways::new(pfconfig.gateways);
+	let mut gateways = gateway::Gateways::new(opnconfig.gateways);
 	let max_gateway_name_len = gateways.iter().map(|(name, _)| name.len()).max().unwrap_or_default();
 
-	let mut services = service::Service::get_all(config.services, pfconfig.services)?;
+	let mut services = service::Service::get_all(config.services)?;
 	let max_service_name_len = services.iter().map(|service::Service { name, .. }| name.len()).max().unwrap_or_default();
 	let num_services_per_row = 70 / (max_service_name_len + 2);
 	let num_services_rows = (services.len() + num_services_per_row - 1) / num_services_per_row;
 
-	let max_firewall_log_interface_name_len = pfconfig.gateway_interfaces.iter().map(String::len).max().unwrap_or_default();
-	let firewall_logs = firewall_logs::Logs::new(pfconfig.gateway_interfaces, &config.ssh)?;
+	let max_firewall_log_interface_name_len = opnconfig.gateway_interfaces.iter().map(String::len).max().unwrap_or_default();
+	let firewall_logs = firewall_logs::Logs::new(opnconfig.gateway_interfaces, &config.ssh)?;
 
 
 	let mut previous = std::time::SystemTime::now();
@@ -151,7 +144,7 @@ fn main() -> Result<(), Error> {
 		// Instead we use [K to clear each line before we write a new one.
 		//
 		// This also allows us to not clear the first four lines of version info (which are the same in every loop iteration anyway),
-		// which is why they're emitted outside the loop and why the loop iteration moves the cursor to 5;1 instead of 1;1.
+		// which is why they're emitted outside the loop and why the loop iteration moves the cursor to 4;1 instead of 1;1.
 		//
 		// The disadvantage of this method is that it relies on the number of output lines being constant.
 		// There are two situations where this assumption doesn't hold:
@@ -162,7 +155,7 @@ fn main() -> Result<(), Error> {
 		// - The number of IPs assigned to any interfaces changes. This should only happen if you change your interface settings.
 		//   Restart the dashboard when you do that.
 
-		output.extend_from_slice(b"\x1B[?7l\x1B[5;1H");
+		output.extend_from_slice(b"\x1B[?7l\x1B[4;1H");
 
 
 		{
@@ -304,7 +297,7 @@ fn main() -> Result<(), Error> {
 		{
 			output.extend_from_slice(b"\n\x1B[KInterfaces    : ");
 
-			for (i, (interface_name, interface, is_bridge)) in interfaces.iter_mut().enumerate() {
+			for (i, (interface_name, interface)) in interfaces.iter_mut().enumerate() {
 				if i > 0 {
 					output.extend_from_slice(b"\n\x1B[K                ");
 				}
@@ -321,10 +314,6 @@ fn main() -> Result<(), Error> {
 
 				if let Some(interface_error) = &interface.error {
 					write!(output, "{:30}", interface_error)?;
-				}
-				else if is_bridge {
-					// Bridge bandwidth is double-counted, and isn't particularly useful anyway, so don't print it.
-					output.extend_from_slice(b"                              ");
 				}
 				else {
 					match interface.speed(time_since_previous) {
