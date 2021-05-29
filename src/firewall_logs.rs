@@ -31,7 +31,7 @@ impl Logs {
 
 	pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ Log> {
 		let (second, first) = self.inner.split_at(self.head);
-		first.iter().chain(second).flat_map(Option::as_ref)
+		first.iter().chain(second).filter_map(Option::as_ref)
 	}
 
 	fn push(&mut self, log: Log) {
