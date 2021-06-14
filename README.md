@@ -63,11 +63,11 @@ The output refreshes every second. It also uses colors that are not visible here
 
 1. Copy config.yaml.example to `~/.config/opnsense-dashboard/config.yaml` and edit it to match your router.
 
-1. Build and install the binary under `$PATH`, such as in `~/bin`.
+1. Build and install the binary under `$PATH`, such as in `~/.local/bin`.
 
    ```sh
    cargo build --release
-   cp -f ./target/release/opnsense-dashboard ~/bin/
+   cp -f ./target/release/opnsense-dashboard ~/.local/bin/
    ```
 
    `make install` will do this for you.

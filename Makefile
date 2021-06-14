@@ -9,7 +9,7 @@ build:
 	cargo build --release
 
 install: build
-	cp -f target/release/opnsense-dashboard ~/bin/
+	cp -f target/release/opnsense-dashboard ~/.local/bin/
 
 test:
 	cargo test --all
