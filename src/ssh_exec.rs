@@ -52,8 +52,167 @@ pub(crate) mod batched_sysctls_2 {
 }
 
 pub(crate) mod clog_filter_log {
-	pub(crate) fn run(session: &ssh2::Session) -> impl Iterator<Item = Result<String, crate::Error>> {
-		super::read_lines(super::exec(session, "/usr/local/sbin/clog -f /var/log/filter.log"))
+	#[derive(Debug, serde::Deserialize)]
+	pub(crate) struct Log {
+		pub(crate) action: LogAction,
+
+		#[serde(rename = "__digest__")]
+		pub(crate) digest: String,
+
+		#[serde(rename = "dir")]
+		pub(crate) direction: LogDirection,
+
+		pub(crate) interface: String,
+
+		#[serde(flatten)]
+		pub(crate) ip_fields: LogIpFields,
+
+		pub(crate) reason: LogReason,
+
+		#[serde(rename = "__timestamp__")]
+		pub(crate) timestamp: String,
+	}
+
+	#[derive(Clone, Copy, Debug, serde::Deserialize)]
+	pub(crate) enum LogAction {
+		#[serde(rename = "block")]
+		Block,
+
+		#[serde(rename = "pass")]
+		Pass,
+
+		#[serde(other)]
+		Other,
+	}
+
+	#[derive(Clone, Copy, Debug, serde::Deserialize)]
+	pub(crate) enum LogDirection {
+		#[serde(rename = "in")]
+		In,
+
+		#[serde(other)]
+		Other,
+	}
+
+	#[derive(Debug, serde::Deserialize)]
+	#[serde(tag = "ipversion")]
+	pub(crate) enum LogIpFields {
+		#[serde(rename = "4")]
+		V4 {
+			#[serde(flatten)]
+			proto: LogV4ProtoFields,
+
+			src: std::net::Ipv4Addr,
+
+			#[serde(rename = "dst")]
+			dest: std::net::Ipv4Addr,
+		},
+
+		#[serde(rename = "6")]
+		V6 {
+			#[serde(flatten)]
+			proto: LogV6ProtoFields,
+
+			src: std::net::Ipv6Addr,
+
+			#[serde(rename = "dst")]
+			dest: std::net::Ipv6Addr,
+		},
+
+		#[serde(other)]
+		Other,
+	}
+
+	#[derive(Debug, serde::Deserialize)]
+	#[serde(tag = "protonum")]
+	pub(crate) enum LogV4ProtoFields {
+		#[serde(rename = "1")]
+		Icmp,
+
+		#[serde(rename = "6")]
+		Tcp {
+			#[serde(rename = "srcport", deserialize_with = "deserialize_port")]
+			src_port: u16,
+
+			#[serde(rename = "dstport", deserialize_with = "deserialize_port")]
+			dest_port: u16,
+		},
+
+		#[serde(rename = "17")]
+		Udp {
+			#[serde(rename = "srcport", deserialize_with = "deserialize_port")]
+			src_port: u16,
+
+			#[serde(rename = "dstport", deserialize_with = "deserialize_port")]
+			dest_port: u16,
+		},
+
+		#[serde(other)]
+		Other,
+	}
+
+	#[derive(Debug, serde::Deserialize)]
+	#[serde(tag = "protonum")]
+	pub(crate) enum LogV6ProtoFields {
+		#[serde(rename = "58")]
+		Icmpv6,
+
+		#[serde(rename = "6")]
+		Tcp {
+			#[serde(rename = "srcport", deserialize_with = "deserialize_port")]
+			src_port: u16,
+
+			#[serde(rename = "dstport", deserialize_with = "deserialize_port")]
+			dest_port: u16,
+		},
+
+		#[serde(rename = "17")]
+		Udp {
+			#[serde(rename = "srcport", deserialize_with = "deserialize_port")]
+			src_port: u16,
+
+			#[serde(rename = "dstport", deserialize_with = "deserialize_port")]
+			dest_port: u16,
+		},
+
+		#[serde(other)]
+		Other,
+	}
+
+	#[derive(Clone, Copy, Debug, serde::Deserialize)]
+	pub(crate) enum LogReason {
+		#[serde(rename = "match")]
+		Match,
+
+		#[serde(other)]
+		Other,
+	}
+
+	pub(crate) fn run(session: &ssh2::Session, previous_digest: Option<&str>) -> Result<Vec<Log>, crate::Error> {
+		if let Some(previous_digest) = previous_digest {
+			super::read_json(super::exec(session, &format!("/usr/local/sbin/configctl filter read log 100 {}", previous_digest))?)
+		}
+		else {
+			super::read_json(super::exec(session, "/usr/local/sbin/configctl filter read log 100")?)
+		}
+	}
+
+	fn deserialize_port<'de, D>(deserializer: D) -> Result<u16, D::Error> where D: serde::Deserializer<'de> {
+		struct Visitor;
+
+		impl<'de> serde::de::Visitor<'de> for Visitor {
+			type Value = u16;
+
+			fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+				f.write_str("str containing a port number (u16)")
+			}
+
+			fn visit_str<E>(self, s: &str) -> Result<Self::Value, E> where E: serde::de::Error {
+				s.parse().map_err(serde::de::Error::custom)
+			}
+		}
+
+		deserializer.deserialize_str(Visitor)
 	}
 }
 

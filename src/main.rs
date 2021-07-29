@@ -110,7 +110,7 @@ fn main() -> Result<(), Error> {
 	let num_services_rows = (services.len() + num_services_per_row - 1) / num_services_per_row;
 
 	let max_firewall_log_interface_name_len = opnconfig.gateway_interfaces.iter().map(String::len).max().unwrap_or_default();
-	let firewall_logs = firewall_logs::Logs::new(opnconfig.gateway_interfaces, &config.ssh)?;
+	let mut firewall_logs = firewall_logs::Logs::new(opnconfig.gateway_interfaces);
 
 
 	let mut previous = std::time::SystemTime::now();
@@ -136,6 +136,8 @@ fn main() -> Result<(), Error> {
 		for service in &mut services[..] {
 			service.update(&session)?;
 		}
+
+		firewall_logs.update(&session)?;
 
 
 		// Note:
@@ -410,7 +412,6 @@ fn main() -> Result<(), Error> {
 		{
 			output.extend_from_slice(b"\n\x1B[KFirewall logs : ");
 
-			let firewall_logs = firewall_logs.lock().expect("could not lock firewall logs queue");
 			for (i, firewall_log) in firewall_logs.iter().enumerate() {
 				if i > 0 {
 					output.extend_from_slice(b"\n\x1B[K                ");

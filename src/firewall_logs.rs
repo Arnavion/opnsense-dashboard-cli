@@ -1,42 +1,116 @@
 #[derive(Debug)]
 pub(crate) struct Logs {
+	interfaces: std::collections::BTreeSet<String>,
+
 	inner: [Option<Log>; 10],
 
 	// Index of the newest log. Moves backwards as new logs are pushed.
 	head: usize,
+
+	previous_digest: Option<String>,
 }
 
 impl Logs {
-	pub(crate) fn new(interfaces: impl IntoIterator<Item = String>, ssh: &crate::config::Ssh) -> Result<std::sync::Arc<std::sync::Mutex<Self>>, crate::Error> {
-		let result = std::sync::Arc::new(std::sync::Mutex::new(Logs {
-			inner: Default::default(),
-			head: 0,
-		}));
-
-		// Can't multiplex on the same session because ssh2 has internal mutexes to only let one command run at a time.
-		// So create a new connection and session.
-		let session = crate::connect(&ssh.hostname, &ssh.username, None)?;
-
-		let logs = result.clone();
-
+	pub(crate) fn new(interfaces: impl IntoIterator<Item = String>) -> Self {
 		let interfaces = interfaces.into_iter().collect();
 
-		let _ = std::thread::spawn(move || if let Err(err) = log_reader_thread(&logs, &session, &interfaces) {
-			eprintln!("{:?}", err);
-			std::process::exit(1);
-		});
+		Logs {
+			interfaces,
+			inner: Default::default(),
+			head: 0,
+			previous_digest: None,
+		}
+	}
 
-		Ok(result)
+	pub(crate) fn update(&mut self, session: &ssh2::Session) -> Result<(), crate::Error> {
+		for log in crate::ssh_exec::clog_filter_log::run(session, self.previous_digest.as_deref())?.into_iter().rev() {
+			if self.previous_digest.as_deref() == Some(&log.digest) {
+				continue;
+			}
+
+			match log.reason {
+				crate::ssh_exec::clog_filter_log::LogReason::Match => (),
+				crate::ssh_exec::clog_filter_log::LogReason::Other => continue,
+			}
+
+			match log.direction {
+				crate::ssh_exec::clog_filter_log::LogDirection::In => (),
+				crate::ssh_exec::clog_filter_log::LogDirection::Other => continue,
+			}
+
+			if !self.interfaces.contains(&log.interface) {
+				continue;
+			}
+
+			let timestamp = log.timestamp;
+
+			let interface = log.interface;
+
+			let action = match log.action {
+				crate::ssh_exec::clog_filter_log::LogAction::Block => Action::Block,
+				crate::ssh_exec::clog_filter_log::LogAction::Pass => Action::Pass,
+				crate::ssh_exec::clog_filter_log::LogAction::Other => continue,
+			};
+
+			let protocol = match log.ip_fields {
+				crate::ssh_exec::clog_filter_log::LogIpFields::V4 { proto, src, dest } => match proto {
+					crate::ssh_exec::clog_filter_log::LogV4ProtoFields::Icmp => Protocol::Icmp {
+						source: std::net::IpAddr::V4(src),
+						destination: std::net::IpAddr::V4(dest),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV4ProtoFields::Tcp { src_port, dest_port } => Protocol::Tcp {
+						source: std::net::SocketAddr::new(std::net::IpAddr::V4(src), src_port),
+						destination: std::net::SocketAddr::new(std::net::IpAddr::V4(dest), dest_port),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV4ProtoFields::Udp { src_port, dest_port } => Protocol::Udp {
+						source: std::net::SocketAddr::new(std::net::IpAddr::V4(src), src_port),
+						destination: std::net::SocketAddr::new(std::net::IpAddr::V4(dest), dest_port),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV4ProtoFields::Other => continue,
+				},
+
+				crate::ssh_exec::clog_filter_log::LogIpFields::V6 { proto, src, dest } => match proto {
+					crate::ssh_exec::clog_filter_log::LogV6ProtoFields::Icmpv6 => Protocol::Icmp {
+						source: std::net::IpAddr::V6(src),
+						destination: std::net::IpAddr::V6(dest),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV6ProtoFields::Tcp { src_port, dest_port } => Protocol::Tcp {
+						source: std::net::SocketAddr::new(std::net::IpAddr::V6(src), src_port),
+						destination: std::net::SocketAddr::new(std::net::IpAddr::V6(dest), dest_port),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV6ProtoFields::Udp { src_port, dest_port } => Protocol::Udp {
+						source: std::net::SocketAddr::new(std::net::IpAddr::V6(src), src_port),
+						destination: std::net::SocketAddr::new(std::net::IpAddr::V6(dest), dest_port),
+					},
+
+					crate::ssh_exec::clog_filter_log::LogV6ProtoFields::Other => continue,
+				},
+
+				crate::ssh_exec::clog_filter_log::LogIpFields::Other => continue,
+			};
+
+			self.head = (self.head + self.inner.len() - 1) % self.inner.len();
+			self.inner[self.head] = Some(Log {
+				timestamp,
+				interface,
+				action,
+				protocol,
+			});
+
+			self.previous_digest = Some(log.digest);
+		}
+
+		Ok(())
 	}
 
 	pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ Log> {
 		let (second, first) = self.inner.split_at(self.head);
 		first.iter().chain(second).filter_map(Option::as_ref)
-	}
-
-	fn push(&mut self, log: Log) {
-		self.head = (self.head + self.inner.len() - 1) % self.inner.len();
-		self.inner[self.head] = Some(log);
 	}
 }
 
@@ -46,86 +120,6 @@ pub(crate) struct Log {
 	pub(crate) interface: String,
 	pub(crate) action: Action,
 	pub(crate) protocol: Protocol,
-}
-
-impl Log {
-	fn from_str(s: &str, interfaces: &std::collections::BTreeSet<String>) -> Result<Self, ()> {
-		// Ref: https://docs.netgate.com/pfsense/en/latest/monitoring/logs/raw-filter-format.html
-
-		let timestamp = s.get(..("MMM dd HH:mm:ss".len())).ok_or(())?;
-
-		let mut line_parts = s.split(',');
-
-		let interface = line_parts.nth(4).ok_or(())?;
-		if !interfaces.contains(interface) {
-			return Err(());
-		}
-
-		let reason = line_parts.next().ok_or(())?;
-		if reason != "match" {
-			return Err(());
-		}
-
-		let action = line_parts.next().ok_or(())?;
-		let action = action.parse()?;
-
-		let direction = line_parts.next().ok_or(())?;
-		if direction != "in" {
-			return Err(());
-		}
-
-		let ipv4_or_v6 = line_parts.next().ok_or(())?;
-
-		let (protocol_id_offset, source_ip_offset) = match ipv4_or_v6 {
-			"4" => (6, 2),
-			"6" => (4, 1),
-			_ => return Err(()),
-		};
-
-		let protocol_id = line_parts.nth(protocol_id_offset).ok_or(())?;
-
-		let source_ip = line_parts.nth(source_ip_offset).ok_or(())?;
-		let destination_ip = line_parts.next().ok_or(())?;
-
-		let protocol = match protocol_id {
-			"1" | "58" => {
-				let source = ip_addr_from_parts(ipv4_or_v6, source_ip).ok_or(())?;
-
-				let destination = ip_addr_from_parts(ipv4_or_v6, destination_ip).ok_or(())?;
-
-				Protocol::Icmp { source, destination }
-			},
-
-			"6" => {
-				let source_port = line_parts.next().ok_or(())?;
-				let source = socket_addr_from_parts(ipv4_or_v6, source_ip, source_port).ok_or(())?;
-
-				let destination_port = line_parts.next().ok_or(())?;
-				let destination = socket_addr_from_parts(ipv4_or_v6, destination_ip, destination_port).ok_or(())?;
-
-				Protocol::Tcp { source, destination }
-			},
-
-			"17" => {
-				let source_port = line_parts.next().ok_or(())?;
-				let source = socket_addr_from_parts(ipv4_or_v6, source_ip, source_port).ok_or(())?;
-
-				let destination_port = line_parts.next().ok_or(())?;
-				let destination = socket_addr_from_parts(ipv4_or_v6, destination_ip, destination_port).ok_or(())?;
-
-				Protocol::Udp { source, destination }
-			},
-
-			_ => return Err(()),
-		};
-
-		Ok(Log {
-			timestamp: timestamp.to_owned(),
-			interface: interface.to_owned(),
-			action,
-			protocol,
-		})
-	}
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -160,39 +154,4 @@ pub(crate) enum Protocol {
 	Icmp { source: std::net::IpAddr, destination: std::net::IpAddr },
 	Tcp { source: std::net::SocketAddr, destination: std::net::SocketAddr },
 	Udp { source: std::net::SocketAddr, destination: std::net::SocketAddr },
-}
-
-fn log_reader_thread(logs: &std::sync::Mutex<Logs>, session: &ssh2::Session, interfaces: &std::collections::BTreeSet<String>) -> Result<(), crate::Error> {
-	loop {
-		let lines = crate::ssh_exec::clog_filter_log::run(session);
-
-		for line in lines {
-			let line = line?;
-
-			let log = match Log::from_str(&line, interfaces) {
-				Ok(log) => log,
-				Err(()) => continue,
-			};
-
-			let mut logs = logs.lock().expect("could not lock firewall logs queue");
-			logs.push(log);
-		}
-
-		// `clog -f` returned, for some reason. Restart it.
-		std::thread::sleep(std::time::Duration::from_secs(1));
-	}
-}
-
-fn ip_addr_from_parts(ipv4_or_v6: &str, ip: &str) -> Option<std::net::IpAddr> {
-	match ipv4_or_v6 {
-		"4" => Some(std::net::IpAddr::V4(ip.parse().ok()?)),
-		"6" => Some(std::net::IpAddr::V6(ip.parse().ok()?)),
-		_ => None,
-	}
-}
-
-fn socket_addr_from_parts(ipv4_or_v6: &str, ip: &str, port: &str) -> Option<std::net::SocketAddr> {
-	let ip_addr = ip_addr_from_parts(ipv4_or_v6, ip)?;
-	let port = port.parse().ok()?;
-	Some(std::net::SocketAddr::new(ip_addr, port))
 }
