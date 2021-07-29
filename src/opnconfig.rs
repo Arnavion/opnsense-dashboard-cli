@@ -31,11 +31,11 @@ impl OpnConfig {
 			});
 		}
 
-		for (_, gateway_interface) in opnconfig.gateways.0 {
+		for gateway_interface in opnconfig.gateways.0.into_values() {
 			let _ = opnconfig.interfaces.0.remove(gateway_interface);
 		}
 
-		let other_interfaces = opnconfig.interfaces.0.into_iter().map(|(_, interface_if)| interface_if.to_owned()).collect();
+		let other_interfaces = opnconfig.interfaces.0.into_values().map(ToOwned::to_owned).collect();
 
 		let result = OpnConfig {
 			gateway_interfaces,
