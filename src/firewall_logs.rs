@@ -28,6 +28,8 @@ impl Logs {
 				continue;
 			}
 
+			self.previous_digest = Some(log.digest);
+
 			match log.reason {
 				crate::ssh_exec::clog_filter_log::LogReason::Match => (),
 				crate::ssh_exec::clog_filter_log::LogReason::Other => continue,
@@ -101,8 +103,6 @@ impl Logs {
 				action,
 				protocol,
 			});
-
-			self.previous_digest = Some(log.digest);
 		}
 
 		Ok(())
