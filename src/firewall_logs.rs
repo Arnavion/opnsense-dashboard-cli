@@ -151,7 +151,7 @@ impl std::str::FromStr for Action {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Protocol {
-	Icmp { source: std::net::IpAddr, destination: std::net::IpAddr },
+	Icmp { source: std::net::IpAddr, #[allow(unused)] destination: std::net::IpAddr },
 	Tcp { source: std::net::SocketAddr, destination: std::net::SocketAddr },
 	Udp { source: std::net::SocketAddr, destination: std::net::SocketAddr },
 }
