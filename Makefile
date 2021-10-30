@@ -1,4 +1,4 @@
-.PHONY: build clean install test
+.PHONY: build clean default install test
 
 default: build
 

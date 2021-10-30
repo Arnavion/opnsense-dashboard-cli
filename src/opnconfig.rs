@@ -14,7 +14,7 @@ impl OpnConfig {
 	pub(crate) fn load(session: &ssh2::Session) -> Result<Self, crate::Error> {
 		let opnconfig = crate::ssh_exec::opnconfig::run(session)?;
 		let opnconfig = roxmltree::Document::parse(&opnconfig)?;
-		let mut opnconfig: OpnSense<'_> = std::convert::TryInto::try_into(opnconfig.root_element())?;
+		let mut opnconfig: OpnSense<'_> = opnconfig.root_element().try_into()?;
 
 		let mut gateway_interfaces: std::collections::BTreeSet<_> = Default::default();
 		let mut gateways = vec![];
@@ -53,7 +53,7 @@ struct OpnSense<'input> {
 	gateways: Gateways<'input>,
 }
 
-impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for OpnSense<'input> {
+impl<'input> TryFrom<roxmltree::Node<'input, 'input>> for OpnSense<'input> {
 	type Error = crate::Error;
 
 	fn try_from(node: roxmltree::Node<'input, 'input>) -> Result<Self, Self::Error> {
@@ -66,10 +66,10 @@ impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for OpnSense
 		for child in node.children() {
 			let child_tag_name = child.tag_name();
 			if child_tag_name == interfaces_tag_name {
-				interfaces = Some(std::convert::TryInto::try_into(child)?);
+				interfaces = Some(child.try_into()?);
 			}
 			else if child_tag_name == gateways_tag_name {
-				gateways = Some(std::convert::TryInto::try_into(child)?);
+				gateways = Some(child.try_into()?);
 			}
 		}
 
@@ -86,7 +86,7 @@ impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for OpnSense
 #[derive(Debug)]
 struct Interfaces<'input>(std::collections::BTreeMap<&'input str, &'input str>);
 
-impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Interfaces<'input> {
+impl<'input> TryFrom<roxmltree::Node<'input, 'input>> for Interfaces<'input> {
 	type Error = crate::Error;
 
 	fn try_from(node: roxmltree::Node<'input, 'input>) -> Result<Self, Self::Error> {
@@ -94,7 +94,7 @@ impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Interfac
 			node.children()
 			.filter_map(|child|
 				if child.is_element() {
-					let Interface { name, r#if, internal_dynamic } = match std::convert::TryInto::try_into(child) {
+					let Interface { name, r#if, internal_dynamic } = match child.try_into() {
 						Ok(interface) => interface,
 						Err(err) => return Some(Err(err)),
 					};
@@ -122,7 +122,7 @@ struct Interface<'input> {
 	internal_dynamic: bool,
 }
 
-impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Interface<'input> {
+impl<'input> TryFrom<roxmltree::Node<'input, 'input>> for Interface<'input> {
 	type Error = crate::Error;
 
 	fn try_from(node: roxmltree::Node<'input, 'input>) -> Result<Self, Self::Error> {
@@ -148,7 +148,7 @@ impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Interfac
 #[derive(Debug)]
 struct Gateways<'input>(std::collections::BTreeMap<&'input str, &'input str>);
 
-impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Gateways<'input> {
+impl<'input> TryFrom<roxmltree::Node<'input, 'input>> for Gateways<'input> {
 	type Error = crate::Error;
 
 	fn try_from(node: roxmltree::Node<'input, 'input>) -> Result<Self, Self::Error> {
@@ -158,7 +158,7 @@ impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for Gateways
 			node.children()
 			.filter_map(|child|
 				if child.tag_name() == gateway_item_tag_name {
-					let GatewayItem { name, interface } = match std::convert::TryInto::try_into(child) {
+					let GatewayItem { name, interface } = match child.try_into() {
 						Ok(gateway) => gateway,
 						Err(err) => return Some(Err(err)),
 					};
@@ -180,7 +180,7 @@ struct GatewayItem<'input> {
 	interface: &'input str,
 }
 
-impl<'input> std::convert::TryFrom<roxmltree::Node<'input, 'input>> for GatewayItem<'input> {
+impl<'input> TryFrom<roxmltree::Node<'input, 'input>> for GatewayItem<'input> {
 	type Error = crate::Error;
 
 	fn try_from(node: roxmltree::Node<'input, 'input>) -> Result<Self, Self::Error> {
