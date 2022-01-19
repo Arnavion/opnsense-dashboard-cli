@@ -14,6 +14,7 @@ impl Gateways {
 		}
 	}
 
+	#[allow(clippy::iter_not_returning_iterator)] // TODO: https://github.com/rust-lang/rust-clippy/issues/8293
 	pub(crate) fn iter(&self) -> impl Iterator<Item = (&str, Option<Gateway>)> {
 		self.gateways.iter().map(|(name, gateway)| (&**name, *gateway))
 	}

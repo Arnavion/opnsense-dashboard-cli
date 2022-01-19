@@ -13,6 +13,7 @@ impl Interfaces {
 		}
 	}
 
+	#[allow(clippy::iter_not_returning_iterator)] // TODO: https://github.com/rust-lang/rust-clippy/issues/8293
 	pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (&'_ str, &'_ mut Interface)> {
 		self.gateways.iter_mut().map(|(name, interface)| (name.as_ref(), interface))
 		.chain(self.other.iter_mut().map(|(name, interface)| (name.as_ref(), interface)))

@@ -26,7 +26,7 @@ impl Service {
 					"syslog-ng" => crate::config::ServiceMonitor::PidFile("/var/run/syslog-ng.pid".into()),
 					"syslogd" => crate::config::ServiceMonitor::PidFile("/var/run/syslog.pid".into()),
 					"unbound" => crate::config::ServiceMonitor::PidFile("/var/run/unbound.pid".into()),
-					name => return Err(format!("{:?} is not recognized as a built-in service", name).into()),
+					name => return Err(format!("{name:?} is not recognized as a built-in service").into()),
 				};
 				Ok((name, monitor))
 			})

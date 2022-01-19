@@ -190,7 +190,7 @@ pub(crate) mod clog_filter_log {
 
 	pub(crate) fn run(session: &ssh2::Session, previous_digest: Option<&str>) -> Result<Vec<Log>, crate::Error> {
 		if let Some(previous_digest) = previous_digest {
-			super::read_json(super::exec(session, &format!("/usr/local/sbin/configctl filter read log 100 {}", previous_digest))?)
+			super::read_json(super::exec(session, &format!("/usr/local/sbin/configctl filter read log 100 {previous_digest}"))?)
 		}
 		else {
 			super::read_json(super::exec(session, "/usr/local/sbin/configctl filter read log 100")?)
@@ -291,7 +291,7 @@ pub(crate) mod ifconfig {
 
 	impl Exec {
 		pub(crate) fn new(name: &str) -> Self {
-			let command = format!("/sbin/ifconfig '{}'", name);
+			let command = format!("/sbin/ifconfig '{name}'");
 			Exec {
 				command,
 			}
@@ -402,8 +402,8 @@ pub(crate) mod pgrep {
 	impl Exec {
 		pub(crate) fn new(monitor: crate::config::ServiceMonitor<'_>) -> Self {
 			let command = match monitor {
-				crate::config::ServiceMonitor::CmdLine(cmdline) => format!("/bin/pgrep -f '^{}'", cmdline),
-				crate::config::ServiceMonitor::PidFile(pidfile) => format!("/bin/pgrep -F '{}'", pidfile),
+				crate::config::ServiceMonitor::CmdLine(cmdline) => format!("/bin/pgrep -f '^{cmdline}'"),
+				crate::config::ServiceMonitor::PidFile(pidfile) => format!("/bin/pgrep -F '{pidfile}'"),
 			};
 			Exec {
 				command,
@@ -426,7 +426,7 @@ pub(crate) mod smartctl_a {
 
 	impl Exec {
 		pub(crate) fn new(name: &str) -> Self {
-			let command = format!("/usr/local/sbin/smartctl -a --json=c '/dev/{}'", name);
+			let command = format!("/usr/local/sbin/smartctl -a --json=c '/dev/{name}'");
 			Exec {
 				command,
 			}
@@ -463,7 +463,7 @@ pub(crate) mod smartctl_i {
 	}
 
 	pub(crate) fn get_serial_number(name: &str, session: &ssh2::Session) -> Result<String, crate::Error> {
-		let Output { serial_number } = super::read_json(super::exec(session, &format!("/usr/local/sbin/smartctl -i --json=c '/dev/{}'", name))?)?;
+		let Output { serial_number } = super::read_json(super::exec(session, &format!("/usr/local/sbin/smartctl -i --json=c '/dev/{name}'"))?)?;
 		Ok(serial_number)
 	}
 }

@@ -23,7 +23,7 @@ impl OpnConfig {
 			let &r#if =
 				opnconfig.interfaces.0
 				.get(gateway_interface)
-				.ok_or_else(|| format!("gateway {} is defined on interface {} but this interface does not exist", gateway_name, gateway_interface))?;
+				.ok_or_else(|| format!("gateway {gateway_name} is defined on interface {gateway_interface} but this interface does not exist"))?;
 			gateway_interfaces.insert(r#if.to_owned());
 
 			gateways.push(Gateway {

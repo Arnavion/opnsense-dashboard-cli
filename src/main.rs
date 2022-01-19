@@ -72,8 +72,8 @@ fn main() -> Result<(), Error> {
 			version: ssh_exec::version::Version { product_arch, product_name, product_version },
 			os_base_version,
 		} = version_info::VersionInfo::get(&session)?;
-		writeln!(stdout, "Version       : {} {}-{}", product_name, product_version, product_arch)?;
-		writeln!(stdout, "                {}", os_base_version)?;
+		writeln!(stdout, "Version       : {product_name} {product_version}-{product_arch}")?;
+		writeln!(stdout, "                {os_base_version}")?;
 		writeln!(stdout)?;
 	}
 
@@ -120,7 +120,7 @@ fn main() -> Result<(), Error> {
 		let now = std::time::SystemTime::now();
 		let time_since_previous =
 			now.duration_since(previous)
-			.map_err(|err| format!("could not calculate time since previous iteration: {}", err))?;
+			.map_err(|err| format!("could not calculate time since previous iteration: {err}"))?;
 
 
 		batched_sysctls_exec.run(&mut cpu, &mut memory, &mut temperature_sysctls[..], &session)?;
@@ -181,7 +181,7 @@ fn main() -> Result<(), Error> {
 			output.extend_from_slice(b"\n\x1B[KCPU usage     : ");
 			if let Some(cpu_usage_percent) = cpu.usage_percent() {
 				let cpu_usage_color = get_color_for_usage(cpu_usage_percent);
-				write!(output, "\x1B[{}m{:5.1} %\x1B[0m", cpu_usage_color, cpu_usage_percent)?;
+				write!(output, "\x1B[{cpu_usage_color}m{cpu_usage_percent:5.1} %\x1B[0m")?;
 			}
 			else {
 				output.extend_from_slice(b"    ? %");
@@ -191,7 +191,7 @@ fn main() -> Result<(), Error> {
 
 		{
 			let (memory_usage_percent, memory_usage_color) = usage(memory.used_pages as f32, memory.num_pages as f32);
-			write!(output, "\n\x1B[KMemory usage  : \x1B[{}m{:5.1} % of {} MiB\x1B[0m", memory_usage_color, memory_usage_percent, memory.physical / 1_048_576)?;
+			write!(output, "\n\x1B[KMemory usage  : \x1B[{memory_usage_color}m{memory_usage_percent:5.1} % of {} MiB\x1B[0m", memory.physical / 1_048_576)?;
 		}
 
 
@@ -199,14 +199,14 @@ fn main() -> Result<(), Error> {
 			let states_used = ssh_exec::pfctl_s_info::get_states_used(&session)?;
 			let states_max = (memory.physical / 10_485_760) * 1000;
 			let (states_usage_percent, states_usage_color) = usage(states_used as f32, states_max as f32);
-			write!(output, "\n\x1B[KStates table  : \x1B[{}m{:5.1} % ({:7} / {:7})\x1B[0m", states_usage_color, states_usage_percent, states_used, states_max)?;
+			write!(output, "\n\x1B[KStates table  : \x1B[{states_usage_color}m{states_usage_percent:5.1} % ({states_used:7} / {states_max:7})\x1B[0m")?;
 		}
 
 
 		{
 			let ssh_exec::netstat_m::MBufStatistics { cluster_total: mbufs_used, cluster_max: mbufs_max } = ssh_exec::netstat_m::get_mbuf_statistics(&session)?;
 			let (mbufs_usage_percent, mbufs_usage_color) = usage(mbufs_used as f32, mbufs_max as f32);
-			write!(output, "\n\x1B[KMBUF usage    : \x1B[{}m{:5.1} % ({:7} / {:7})\x1B[0m", mbufs_usage_color, mbufs_usage_percent, mbufs_used, mbufs_max)?;
+			write!(output, "\n\x1B[KMBUF usage    : \x1B[{mbufs_usage_color}m{mbufs_usage_percent:5.1} % ({mbufs_used:7} / {mbufs_max:7})\x1B[0m")?;
 		}
 
 
@@ -223,12 +223,9 @@ fn main() -> Result<(), Error> {
 				}
 
 				write!(output,
-					"\x1B[{}m{:>max_mount_point_len$} : {:5.1} % of {}B\x1B[0m",
-					filesystem_space_usage_color,
+					"\x1B[{filesystem_space_usage_color}m{:>max_mount_point_len$} : {filesystem_space_usage_percent:5.1} % of {}B\x1B[0m",
 					filesystem.mounted_on,
-					filesystem_space_usage_percent,
 					HumanSizeBase10(filesystem.total_blocks as f32 * 1024.),
-					max_mount_point_len = max_mount_point_len,
 				)?;
 			}
 		}
@@ -244,16 +241,7 @@ fn main() -> Result<(), Error> {
 					output.extend_from_slice(b"\n\x1B[K                ");
 				}
 
-				write!(
-					output,
-					"\x1B[{}m{:>max_disk_name_len$} {:max_disk_serial_number_len$} {}\x1B[0m",
-					disk_status_color,
-					name,
-					serial_number,
-					disk_smart_status,
-					max_disk_name_len = max_disk_name_len,
-					max_disk_serial_number_len = max_disk_serial_number_len,
-				)?;
+				write!(output, "\x1B[{disk_status_color}m{name:>max_disk_name_len$} {serial_number:max_disk_serial_number_len$} {disk_smart_status}\x1B[0m")?;
 			}
 		}
 
@@ -281,14 +269,7 @@ fn main() -> Result<(), Error> {
 					output.extend_from_slice(b"\n\x1B[K                ");
 				}
 
-				write!(
-					output,
-					"\x1B[{}m{:>max_thermal_sensor_name_len$} : {:5.1} \u{00B0}C\x1B[0m",
-					thermal_sensor_color,
-					thermal_sensor_name,
-					thermal_sensor_value,
-					max_thermal_sensor_name_len = max_thermal_sensor_name_len,
-				)?;
+				write!(output, "\x1B[{thermal_sensor_color}m{thermal_sensor_name:>max_thermal_sensor_name_len$} : {thermal_sensor_value:5.1} \u{00B0}C\x1B[0m")?;
 			}
 		}
 
@@ -306,16 +287,10 @@ fn main() -> Result<(), Error> {
 
 				let interface_status_color = get_color_for_up_down(interface.error.is_none());
 
-				write!(
-					output,
-					"\x1B[{}m{:>max_interface_name_len$} : ",
-					interface_status_color,
-					interface_name,
-					max_interface_name_len = max_interface_name_len,
-				)?;
+				write!(output, "\x1B[{interface_status_color}m{interface_name:>max_interface_name_len$} : ")?;
 
 				if let Some(interface_error) = &interface.error {
-					write!(output, "{:30}", interface_error)?;
+					write!(output, "{interface_error:30}")?;
 				}
 				else {
 					match interface.speed(time_since_previous) {
@@ -331,14 +306,12 @@ fn main() -> Result<(), Error> {
 					if i > 0 {
 						write!(
 							output,
-							"\n\x1B[K                \x1B[{}m{:>max_interface_name_len$}                                 ",
-							interface_status_color,
+							"\n\x1B[K                \x1B[{interface_status_color}m{:>max_interface_name_len$}                                 ",
 							"",
-							max_interface_name_len = max_interface_name_len,
 						)?;
 					}
 
-					write!(output, "{}\x1B[0m", address)?;
+					write!(output, "{address}\x1B[0m")?;
 				}
 			}
 		}
@@ -355,20 +328,12 @@ fn main() -> Result<(), Error> {
 				match gateway {
 					Some(gateway::Gateway { latency_average, latency_stddev, ping_packet_loss }) => write!(
 						output,
-						"{:>max_gateway_name_len$} : {:6.1} ms ({:6.1} ms) {:3} %",
-						name,
+						"{name:>max_gateway_name_len$} : {:6.1} ms ({:6.1} ms) {ping_packet_loss:3} %",
 						latency_average.as_secs_f32() * 1000.,
 						latency_stddev.as_secs_f32() * 1000.,
-						ping_packet_loss,
-						max_gateway_name_len = max_gateway_name_len,
 					)?,
 
-					None => write!(
-						output,
-						"{:>max_gateway_name_len$} : dpinger is not running",
-						name,
-						max_gateway_name_len = max_gateway_name_len,
-					)?,
+					None => write!(output, "{name:>max_gateway_name_len$} : dpinger is not running")?,
 				}
 			}
 		}
@@ -394,13 +359,7 @@ fn main() -> Result<(), Error> {
 						output.extend_from_slice(b"\n\x1B[K               ");
 					}
 
-					write!(
-						output,
-						" \x1B[{}m{:max_service_name_len$}\x1B[0m ",
-						service_color,
-						service.name,
-						max_service_name_len = max_service_name_len,
-					)?;
+					write!(output, " \x1B[{service_color}m{:max_service_name_len$}\x1B[0m ", service.name)?;
 				}
 			}
 		}
@@ -425,37 +384,30 @@ fn main() -> Result<(), Error> {
 				match firewall_log.protocol {
 					firewall_logs::Protocol::Icmp { source, destination: _ } => write!(
 						output,
-						"\x1B[{}m{} {:max_firewall_log_interface_name_len$} {}      icmp <- {}\x1B[0m",
-						firewall_log_color,
+						"\x1B[{firewall_log_color}m{} {:max_firewall_log_interface_name_len$} {}      icmp <- {source}\x1B[0m",
 						firewall_log.timestamp,
 						firewall_log.interface,
 						firewall_log.action,
-						source,
-						max_firewall_log_interface_name_len = max_firewall_log_interface_name_len,
 					)?,
 
 					firewall_logs::Protocol::Tcp { source, destination } => write!(
 						output,
-						"\x1B[{}m{} {:max_firewall_log_interface_name_len$} {} {:5}/tcp <- {}\x1B[0m",
-						firewall_log_color,
+						"\x1B[{firewall_log_color}m{} {:max_firewall_log_interface_name_len$} {} {:5}/tcp <- {}\x1B[0m",
 						firewall_log.timestamp,
 						firewall_log.interface,
 						firewall_log.action,
 						destination.port(),
 						source.ip(),
-						max_firewall_log_interface_name_len = max_firewall_log_interface_name_len,
 					)?,
 
 					firewall_logs::Protocol::Udp { source, destination } => write!(
 						output,
-						"\x1B[{}m{} {:max_firewall_log_interface_name_len$} {} {:5}/udp <- {}\x1B[0m",
-						firewall_log_color,
+						"\x1B[{firewall_log_color}m{} {:max_firewall_log_interface_name_len$} {} {:5}/udp <- {}\x1B[0m",
 						firewall_log.timestamp,
 						firewall_log.interface,
 						firewall_log.action,
 						destination.port(),
 						source.ip(),
-						max_firewall_log_interface_name_len = max_firewall_log_interface_name_len,
 					)?,
 				};
 			}
@@ -484,7 +436,7 @@ impl std::fmt::Debug for Error {
 
 		let mut source = self.0.source();
 		while let Some(err) = source {
-			writeln!(f, "caused by: {}", err)?;
+			writeln!(f, "caused by: {err}")?;
 			source = err.source();
 		}
 
@@ -593,25 +545,25 @@ impl std::fmt::Display for HumanSizeBase10 {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let value = self.0;
 		if value < 1000. {
-			return write!(f, "{:3.0}    ", value);
+			return write!(f, "{value:3.0}    ");
 		}
 
 		let value = value / 1000.;
 		if value < 1000. {
-			return write!(f, "{:5.1} K", value);
+			return write!(f, "{value:5.1} K");
 		}
 
 		let value = value / 1000.;
 		if value < 1000. {
-			return write!(f, "{:5.1} M", value);
+			return write!(f, "{value:5.1} M");
 		}
 
 		let value = value / 1000.;
 		if value < 1000. {
-			return write!(f, "{:5.1} G", value);
+			return write!(f, "{value:5.1} G");
 		}
 
 		let value = value / 1000.;
-		write!(f, "{:5.1} T", value)
+		write!(f, "{value:5.1} T")
 	}
 }
