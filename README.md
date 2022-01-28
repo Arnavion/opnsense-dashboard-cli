@@ -4,56 +4,53 @@ The OPNsense status dashboard in your terminal instead of a web browser.
 # Example
 
 ```
-Version       : OPNsense 21.1.2-amd64
-                FreeBSD 12.1-RELEASE-p13-HBSD
-
-Uptime        : 0 days 04:14:47
-
-CPU usage     :  10.4 %
-Memory usage  :   2.2 % of 32617 MiB
-States table  :   0.0 % (    136 / 3261000)
-MBUF usage    :   0.8 % (  15800 / 2034500)
-Disk usage    :    / :   0.8 % of 247.0 GB
-                /var :   0.1 % of  32.5 GB
-                /tmp :   0.0 % of  32.4 GB
+Version       : OPNsense 22.1-amd64
+                FreeBSD 13.0-STABLE
+Uptime        : 0 days 15:20:47
+CPU usage     :  18.1 %
+Memory usage  :  94.9 % of 16230 MiB
+States table  :   0.0 % (    306 / 1623000)
+MBUF usage    :   2.2 % (  21960 / 1011119)
+Disk usage    :      / :   0.5 % of 187.6 GB
+                  /tmp :   0.0 % of 687.0 MB
+                  /var :   6.9 % of 737.9 MB
+                /zroot :   0.0 % of 186.7 GB
 SMART status  : ada0 S0Z4NEAC948908 PASSED
-
 Temperatures  :           dev.cpu.0.temperature :  33.0 °C
-                          dev.cpu.1.temperature :  32.0 °C
+                          dev.cpu.1.temperature :  31.0 °C
                           dev.cpu.2.temperature :  32.0 °C
-                          dev.cpu.3.temperature :  28.0 °C
+                          dev.cpu.3.temperature :  30.0 °C
                 hw.acpi.thermal.tz0.temperature :  27.9 °C
                 hw.acpi.thermal.tz1.temperature :  29.9 °C
-                                           ada0 :  37.0 °C
-
-Interfaces    :  em0 :   1.8 Kb/s down   1.2 Kb/s up ***.***.***.***
-                gif0 :   1.3 Kb/s down   0    b/s up ****:****:****:****::2
-                igb0 : no carrier                    ****:****:****:1::1
-                                                     ****:****:****:5::1
+                                           ada0 :  33.0 °C
+Interfaces    :  em0 :  26.4 Mb/s down 987.6 Kb/s up ***
+                gif0 :  13.7 Kb/s down  39.6 Kb/s up ***::2
+                igb0 : no carrier                    ***::1
+                                                     ***::1
+                                                     ***::1
                                                      192.168.1.1
-                igb1 :   0    b/s down   0    b/s up ****:****:****:2::1
+                                                     192.168.5.1
+                igb1 :  11.4 Kb/s down   7.7 Kb/s up 2***2::1
                                                      192.168.2.1
-                igb2 :   0    b/s down   0    b/s up ****:****:****:3::1
+                igb2 :  34.2 Kb/s down  10.3 Kb/s up ***::1
                                                      192.168.3.1
-                igb3 : 152.5 Kb/s down 370.6 Kb/s up ****:****:****:4::1
+                igb3 : 178.9 Kb/s down 469.7 Kb/s up ***::1
                                                      192.168.4.1
-Gateways      :     HE :   24.1 ms (   0.1 ms)   0 %
-                ISP_V4 :   20.7 ms (   1.4 ms)   0 %
+Gateways      :     HE :   97.3 ms (  12.8 ms)   0 %
+                ISP_V4 :   21.0 ms (   0.9 ms)   0 %
                 ISP_V6 : dpinger is not running
-
-Services      : configd    dhcpd6     ntpd       radvd      syslogd
-                dhcpd      haproxy    openssh    syslog-ng  unbound
-
-Firewall logs : Mar  6 20:48:41 em0  block 31823/tcp <- 89.248.174.2
-                Mar  6 20:48:41 em0  block 42615/udp <- 209.126.38.54
-                Mar  6 20:48:40 em0  block  8999/tcp <- 154.29.131.161
-                Mar  6 20:48:39 em0  block 31823/tcp <- 89.248.174.2
-                Mar  6 20:48:38 em0  block 31823/tcp <- 89.248.174.2
-                Mar  6 20:48:34 em0  block  8999/tcp <- 185.159.158.58
-                Mar  6 20:48:32 em0  block  8999/tcp <- 154.29.131.161
-                Mar  6 20:48:29 em0  block  9091/tcp <- 45.146.165.148
-                Mar  6 20:48:28 em0  block  8999/tcp <- 154.29.131.161
-                Mar  6 20:48:25 em0  block  8999/tcp <- 154.29.131.161
+Services      : configd    dhcpd6     ntpd       radvd      tor       
+                dhcpd      haproxy    openssh    syslog-ng  unbound   
+Firewall logs : 2022-01-28T19:47:07 em0  block  6379/tcp <- 185.185.82.124
+                2022-01-28T19:47:01 em0  block  5353/tcp <- 66.240.236.116
+                2022-01-28T19:46:57 em0  block  2096/tcp <- 162.142.125.140
+                2022-01-28T19:46:57 em0  block 42209/tcp <- 79.124.62.110
+                2022-01-28T19:46:39 em0  block 22072/tcp <- 79.124.62.86
+                2022-01-28T19:46:39 em0  block  7179/tcp <- 91.240.118.15
+                2022-01-28T19:46:33 em0  block  8869/tcp <- 45.143.200.18
+                2022-01-28T19:46:00 em0  block  5555/tcp <- 82.200.42.157
+                2022-01-28T19:45:59 em0  block  5555/tcp <- 82.200.42.157
+                2022-01-28T19:45:54 em0  block  5984/tcp <- 192.241.213.42
 ```
 
 The output refreshes every second. It also uses colors that are not visible here.
