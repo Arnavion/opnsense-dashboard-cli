@@ -20,7 +20,7 @@ impl Service {
 					"configd" => crate::config::ServiceMonitor::PidFile("/var/run/configd.pid".into()),
 					"dhcpd" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -user dhcpd ".into()),
 					"dhcpd6" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -6 -user dhcpd ".into()),
-					"ntpd" => crate::config::ServiceMonitor::PidFile("/var/run/ntpd.pid".into()),
+					"ntpd" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/ntpd ".into()),
 					"openssh" => crate::config::ServiceMonitor::PidFile("/var/run/sshd.pid".into()),
 					"radvd" => crate::config::ServiceMonitor::PidFile("/var/run/radvd.pid".into()),
 					"syslog-ng" => crate::config::ServiceMonitor::PidFile("/var/run/syslog-ng.pid".into()),
