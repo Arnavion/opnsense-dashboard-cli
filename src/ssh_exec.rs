@@ -234,13 +234,22 @@ pub(crate) mod df {
 		pub(crate) mounted_on: String,
 		#[serde(rename = "total-blocks")]
 		pub(crate) total_blocks: u64,
+		#[serde(rename = "type")]
+		pub(crate) r#type: String,
 		#[serde(rename = "used-blocks")]
 		pub(crate) used_blocks: u64,
 	}
 
 	pub(crate) fn get_filesystems(session: &ssh2::Session) -> Result<Vec<Filesystem>, crate::Error> {
-		let Output { storage_system_information: StorageSystemInformation { filesystem } } =
-			super::read_json(super::exec(session, "/bin/df -kt tmpfs,ufs --libxo json")?)?;
+		let Output { storage_system_information: StorageSystemInformation { mut filesystem } } =
+			super::read_json(super::exec(session, "/bin/df -aT --libxo json")?)?;
+		filesystem.retain(|filesystem| matches!(filesystem.r#type.trim_end(), "tmpfs" | "ufs" | "zfs"));
+		filesystem.sort_by(|fs1, fs2|
+			fs1.mounted_on.cmp(&fs2.mounted_on)
+			.then_with(|| fs1.r#type.cmp(&fs2.r#type))
+			.then_with(|| fs1.total_blocks.cmp(&fs2.total_blocks))
+			.then_with(|| fs1.used_blocks.cmp(&fs2.used_blocks))
+		);
 		Ok(filesystem)
 	}
 }
