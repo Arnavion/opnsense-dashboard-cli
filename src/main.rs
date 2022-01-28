@@ -146,7 +146,7 @@ fn main() -> Result<(), Error> {
 		// Instead we use [K to clear each line before we write a new one.
 		//
 		// This also allows us to not clear the first four lines of version info (which are the same in every loop iteration anyway),
-		// which is why they're emitted outside the loop and why the loop iteration moves the cursor to 4;1 instead of 1;1.
+		// which is why they're emitted outside the loop and why the loop iteration moves the cursor to 3;1 instead of 1;1.
 		//
 		// The disadvantage of this method is that it relies on the number of output lines being constant.
 		// There are two situations where this assumption doesn't hold:
@@ -157,7 +157,7 @@ fn main() -> Result<(), Error> {
 		// - The number of IPs assigned to any interfaces changes. This should only happen if you change your interface settings.
 		//   Restart the dashboard when you do that.
 
-		output.extend_from_slice(b"\x1B[?7l\x1B[4;1H");
+		output.extend_from_slice(b"\x1B[?7l\x1B[3;1H");
 
 
 		{
@@ -172,9 +172,6 @@ fn main() -> Result<(), Error> {
 				uptime % 60,
 			)?;
 		}
-
-
-		output.extend_from_slice(b"\n\x1B[K");
 
 
 		{
@@ -246,9 +243,6 @@ fn main() -> Result<(), Error> {
 		}
 
 
-		output.extend_from_slice(b"\n\x1B[K");
-
-
 		{
 			output.extend_from_slice(b"\n\x1B[KTemperatures  : ");
 
@@ -272,9 +266,6 @@ fn main() -> Result<(), Error> {
 				write!(output, "\x1B[{thermal_sensor_color}m{thermal_sensor_name:>max_thermal_sensor_name_len$} : {thermal_sensor_value:5.1} \u{00B0}C\x1B[0m")?;
 			}
 		}
-
-
-		output.extend_from_slice(b"\n\x1B[K");
 
 
 		{
@@ -339,9 +330,6 @@ fn main() -> Result<(), Error> {
 		}
 
 
-		output.extend_from_slice(b"\n\x1B[K");
-
-
 		{
 			output.extend_from_slice(b"\n\x1B[KServices      :");
 
@@ -363,9 +351,6 @@ fn main() -> Result<(), Error> {
 				}
 			}
 		}
-
-
-		output.extend_from_slice(b"\n\x1B[K");
 
 
 		{
