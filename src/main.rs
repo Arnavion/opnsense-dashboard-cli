@@ -112,13 +112,12 @@ fn main() -> Result<(), Error> {
 
 
 	loop {
-		let now = std::time::SystemTime::now();
-		let time_since_previous =
-			now.duration_since(previous)
-			.map_err(|err| format!("could not calculate time since previous iteration: {err}"))?;
-
-
 		batched_sysctls_exec.run(&mut cpu, &mut memory, &mut temperature_sysctls[..], &session)?;
+
+		let states_used = ssh_exec::pfctl_s_info::get_states_used(&session)?;
+		let ssh_exec::netstat_m::MBufStatistics { cluster_total: mbufs_used, cluster_max: mbufs_max } = ssh_exec::netstat_m::get_mbuf_statistics(&session)?;
+
+		let filesystems = ssh_exec::df::get_filesystems(&session)?;
 
 		for disk in &mut disks[..] {
 			disk.update(&session)?;
@@ -133,6 +132,12 @@ fn main() -> Result<(), Error> {
 		}
 
 		firewall_logs.update(&session)?;
+
+
+		let now = std::time::SystemTime::now();
+		let time_since_previous =
+			now.duration_since(previous)
+			.map_err(|err| format!("could not calculate time since previous iteration: {err}"))?;
 
 
 		// Note:
@@ -194,7 +199,6 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			let states_used = ssh_exec::pfctl_s_info::get_states_used(&session)?;
 			let states_max = (memory.physical / 10_485_760) * 1000;
 			let (states_usage_percent, states_usage_color) = usage(states_used as f32, states_max as f32);
 			write!(output, "\n\x1B[KStates table  : \x1B[{states_usage_color}m{states_usage_percent:5.1} % ({states_used:7} / {states_max:7})\x1B[0m")?;
@@ -202,7 +206,6 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			let ssh_exec::netstat_m::MBufStatistics { cluster_total: mbufs_used, cluster_max: mbufs_max } = ssh_exec::netstat_m::get_mbuf_statistics(&session)?;
 			let (mbufs_usage_percent, mbufs_usage_color) = usage(mbufs_used as f32, mbufs_max as f32);
 			write!(output, "\n\x1B[KMBUF usage    : \x1B[{mbufs_usage_color}m{mbufs_usage_percent:5.1} % ({mbufs_used:7} / {mbufs_max:7})\x1B[0m")?;
 		}
@@ -210,7 +213,6 @@ fn main() -> Result<(), Error> {
 
 		{
 			output.extend_from_slice(b"\n\x1B[KDisk usage    : ");
-			let filesystems = ssh_exec::df::get_filesystems(&session)?;
 			let max_mount_point_len = filesystems.iter().map(|filesystem| filesystem.mounted_on.len()).max().unwrap_or_default();
 			for (i, filesystem) in filesystems.into_iter().enumerate() {
 				let filesystem_space_used = filesystem.used_blocks;
@@ -410,11 +412,7 @@ fn main() -> Result<(), Error> {
 
 
 		previous = now;
-		let next = now + std::time::Duration::from_secs(1);
-		let now = std::time::SystemTime::now();
-		if let Ok(sleep_for) = next.duration_since(now) {
-			std::thread::sleep(sleep_for);
-		}
+		std::thread::sleep(std::time::Duration::from_secs(1));
 	}
 }
 

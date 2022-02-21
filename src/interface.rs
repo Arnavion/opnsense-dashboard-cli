@@ -109,8 +109,8 @@ impl Interface {
 
 	pub(crate) fn speed(&self, time_since_previous: std::time::Duration) -> Option<(f32, f32)> {
 		if self.received_bytes_previous > 0 && self.sent_bytes_previous > 0 {
-			let interface_received_speed = (self.received_bytes.saturating_sub(self.received_bytes_previous)) as f32 / time_since_previous.as_secs() as f32 * 8.;
-			let interface_sent_speed = (self.sent_bytes.saturating_sub(self.sent_bytes_previous)) as f32 / time_since_previous.as_secs() as f32 * 8.;
+			let interface_received_speed = (self.received_bytes.saturating_sub(self.received_bytes_previous)) as f32 / time_since_previous.as_secs_f32() * 8.;
+			let interface_sent_speed = (self.sent_bytes.saturating_sub(self.sent_bytes_previous)) as f32 / time_since_previous.as_secs_f32() * 8.;
 			Some((interface_received_speed, interface_sent_speed))
 		}
 		else {
