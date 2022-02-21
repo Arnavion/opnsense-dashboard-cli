@@ -382,7 +382,7 @@ fn main() -> Result<(), Error> {
 						firewall_log.interface,
 						firewall_log.action,
 						destination.port(),
-						source.ip(),
+						FirewallLogsSource(source),
 					)?,
 
 					firewall_logs::Protocol::Udp { source, destination } => write!(
@@ -392,7 +392,7 @@ fn main() -> Result<(), Error> {
 						firewall_log.interface,
 						firewall_log.action,
 						destination.port(),
-						source.ip(),
+						FirewallLogsSource(source),
 					)?,
 				};
 			}
@@ -550,5 +550,22 @@ impl std::fmt::Display for HumanSizeBase10 {
 
 		let value = value / 1000.;
 		write!(f, "{value:5.1} T")
+	}
+}
+
+#[derive(Clone, Copy, Debug)]
+struct FirewallLogsSource(std::net::SocketAddr);
+
+impl std::fmt::Display for FirewallLogsSource {
+	#[allow(clippy::many_single_char_names)]
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self.0.ip() {
+			std::net::IpAddr::V4(addr) => write!(f, "{}", addr),
+			std::net::IpAddr::V6(addr) => {
+				let [a, b, c, d, ..] = addr.segments();
+				let addr = std::net::Ipv6Addr::new(a, b, c, d, 0, 0, 0, 0);
+				write!(f, "{}/64", addr)
+			},
+		}
 	}
 }
