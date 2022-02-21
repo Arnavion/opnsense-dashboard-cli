@@ -58,6 +58,8 @@ fn main() -> Result<(), Error> {
 	let stdout = std::io::stdout();
 	let mut stdout = stdout.lock();
 
+	let mut previous_terminal_size = None;
+
 
 	let session = connect(&config.ssh.hostname, &config.ssh.username, Some(5000))?;
 
@@ -65,17 +67,12 @@ fn main() -> Result<(), Error> {
 	let opnconfig = opnconfig::OpnConfig::load(&session)?;
 
 
-	stdout.write_all(b"\x1B[2J\x1B[1;1H\x1B[3J")?;
+	stdout.write_all(b"\x1B[1;1H\x1B[3J\x1B[?7l")?;
 
-	{
-		let version_info::VersionInfo {
-			version: ssh_exec::version::Version { product_arch, product_name, product_version },
-			os_base_version,
-		} = version_info::VersionInfo::get(&session)?;
-		writeln!(stdout, "Version       : {product_name} {product_version}-{product_arch}")?;
-		writeln!(stdout, "                {os_base_version}")?;
-		writeln!(stdout)?;
-	}
+	let version_info::VersionInfo {
+		version: ssh_exec::version::Version { product_arch, product_name, product_version },
+		os_base_version,
+	} = version_info::VersionInfo::get(&session)?;
 
 
 	let mut output = vec![];
@@ -106,8 +103,6 @@ fn main() -> Result<(), Error> {
 
 	let mut services = service::Service::get_all(config.services)?;
 	let max_service_name_len = services.iter().map(|service::Service { name, .. }| name.len()).max().unwrap_or_default();
-	let num_services_per_row = 70 / (max_service_name_len + 2);
-	let num_services_rows = (services.len() + num_services_per_row - 1) / num_services_per_row;
 
 	let max_firewall_log_interface_name_len = opnconfig.gateway_interfaces.iter().map(String::len).max().unwrap_or_default();
 	let mut firewall_logs = firewall_logs::Logs::new(opnconfig.gateway_interfaces);
@@ -142,22 +137,28 @@ fn main() -> Result<(), Error> {
 
 		// Note:
 		//
-		// We don't clear the screen with [2J because it's slow in some terminal emulators, like tmux, and causes flickering.
-		// Instead we use [K to clear each line before we write a new one.
-		//
-		// This also allows us to not clear the first four lines of version info (which are the same in every loop iteration anyway),
-		// which is why they're emitted outside the loop and why the loop iteration moves the cursor to 3;1 instead of 1;1.
+		// We don't clear the screen with [2J every time because it's slow in some terminal emulators, like tmux, and causes flickering.
+		// We only do this when the screen size changes. At other times, we leave the first two lines of version info intact (since they're constant),
+		// reset the cursor to just after the version info, and use [K to clear each line before we write a new one.
 		//
 		// The disadvantage of this method is that it relies on the number of output lines being constant.
 		// There are two situations where this assumption doesn't hold:
 		//
 		// - The number of mounted filesystems changes. This is only an issue if you mount or unmount a filesystem dynamically.
-		//   Restart the dashboard when you do that.
-		//
 		// - The number of IPs assigned to any interfaces changes. This should only happen if you change your interface settings.
-		//   Restart the dashboard when you do that.
+		//
+		// In either case, triggering a resize of the dashboard will fix the output.
 
-		output.extend_from_slice(b"\x1B[?7l\x1B[3;1H");
+
+		let terminal_size = terminal_size::terminal_size().map(|(width, height)| (width.0, height.0)).ok_or("not a TTY")?;
+		if previous_terminal_size == Some(terminal_size) {
+			output.extend_from_slice(b"\x1B[3;1H");
+		}
+		else {
+			output.extend_from_slice(b"\x1B[1;1H\x1B[2J");
+			writeln!(output, "Version       : {product_name} {product_version}-{product_arch}")?;
+			writeln!(output, "                {os_base_version}")?;
+		}
 
 
 		{
@@ -333,6 +334,9 @@ fn main() -> Result<(), Error> {
 		{
 			output.extend_from_slice(b"\n\x1B[KServices      :");
 
+			let num_services_per_row = (usize::from(terminal_size.0) - "Services      : ".len()) / (max_service_name_len + 2);
+			let num_services_rows = (services.len() + num_services_per_row - 1) / num_services_per_row;
+
 			for i in 0..num_services_rows {
 				for j in 0..num_services_per_row {
 					let service_index = i + num_services_rows * j;
@@ -402,6 +406,7 @@ fn main() -> Result<(), Error> {
 		stdout.write_all(&output)?;
 		stdout.flush()?;
 		output.clear();
+		previous_terminal_size = Some(terminal_size);
 
 
 		previous = now;
