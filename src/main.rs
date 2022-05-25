@@ -55,8 +55,7 @@ fn main() -> Result<(), Error> {
 	let config = config::Config::load()?;
 
 
-	let stdout = std::io::stdout();
-	let mut stdout = stdout.lock();
+	let mut stdout = std::io::stdout().lock();
 
 	let mut previous_terminal_size = None;
 
