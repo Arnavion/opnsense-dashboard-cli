@@ -3,7 +3,6 @@
 #![allow(
 	clippy::cast_precision_loss,
 	clippy::default_trait_access,
-	clippy::let_underscore_drop,
 	clippy::too_many_lines,
 )]
 

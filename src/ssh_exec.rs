@@ -18,7 +18,9 @@ pub(crate) mod batched_sysctls_2 {
 			let mut command = "/sbin/sysctl -b vm.stats.vm.v_inactive_count vm.stats.vm.v_cache_count vm.stats.vm.v_free_count".to_owned();
 
 			for temperature_sysctl in temperature_sysctls {
-				command.push_str(&format!(" '{}'", temperature_sysctl.name));
+				use std::fmt::Write;
+
+				write!(command, " '{}'", temperature_sysctl.name).unwrap();
 			}
 
 			// kern.cp_time is variable length, so it has to be at the end

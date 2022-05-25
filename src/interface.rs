@@ -13,7 +13,6 @@ impl Interfaces {
 		}
 	}
 
-	#[allow(clippy::iter_not_returning_iterator)] // TODO: https://github.com/rust-lang/rust-clippy/issues/8293
 	pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (&'_ str, &'_ mut Interface)> {
 		self.gateways.iter_mut().map(|(name, interface)| (name.as_ref(), interface))
 		.chain(self.other.iter_mut().map(|(name, interface)| (name.as_ref(), interface)))
@@ -41,17 +40,9 @@ impl Interfaces {
 
 		for interface_statistics in interface_statistics {
 			let interface_name = interface_statistics.name;
-			#[allow(clippy::manual_map, clippy::option_if_let_else)]
 			let interface =
-				if let Some(interface) = self.gateways.get_mut(&interface_name) {
-					Some(interface)
-				}
-				else if let Some(interface) = self.other.get_mut(&interface_name) {
-					Some(interface)
-				}
-				else {
-					None
-				};
+				self.gateways.get_mut(&interface_name)
+				.or_else(|| self.other.get_mut(&interface_name));
 
 			if let Some(interface) = interface {
 				if interface_statistics.network.starts_with("<Link#") {

@@ -108,7 +108,6 @@ impl Logs {
 		Ok(())
 	}
 
-	#[allow(clippy::iter_not_returning_iterator)] // TODO: https://github.com/rust-lang/rust-clippy/issues/8293
 	pub(crate) fn iter(&self) -> impl Iterator<Item = &'_ Log> {
 		let (second, first) = self.inner.split_at(self.head);
 		first.iter().chain(second).filter_map(Option::as_ref)
