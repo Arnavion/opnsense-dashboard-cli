@@ -12,16 +12,20 @@ ssh:
 
 # Services to monitor.
 services:
-  # Built-in services to monitor.
+  # Built-in services to monitor. Includes some plugins.
   builtin:
   - 'configd'
   - 'cron'
+  - 'ddclient'
   - 'dhcpd'
   - 'dhcpd6'
+  - 'haproxy'
+  - 'nginx'
   - 'ntpd'
   - 'openssh'
   - 'radvd'
   - 'syslog-ng'
+  - 'tor'
   - 'unbound'
   - 'webgui'
 
@@ -29,5 +33,3 @@ services:
   custom:
   - name: 'tayga'
     cmdline: '/usr/local/bin/tayga '
-  - name: 'haproxy'
-    pidfile: '/var/run/haproxy.pid'
