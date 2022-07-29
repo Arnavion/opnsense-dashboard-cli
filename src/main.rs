@@ -334,7 +334,12 @@ fn main() -> Result<(), Error> {
 		{
 			output.extend_from_slice(b"\n\x1B[KServices      :");
 
-			let num_services_per_row = (usize::from(terminal_size.0) - "Services      : ".len()) / (max_service_name_len + 2);
+			let num_services_per_row =
+				usize::from(terminal_size.0)
+				.saturating_sub("Services      : ".len())
+				.saturating_sub(max_service_name_len)
+				/ (max_service_name_len + 2)
+				+ 1;
 			let num_services_rows = (services.len() + num_services_per_row - 1) / num_services_per_row;
 
 			for i in 0..num_services_rows {
