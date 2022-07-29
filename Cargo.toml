@@ -10,6 +10,6 @@ dirs = "4"
 roxmltree = { version = "0.14", features = ["std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.8"
+serde_yaml = "0.9"
 ssh2 = "0.9"
 terminal_size = "0.1"
