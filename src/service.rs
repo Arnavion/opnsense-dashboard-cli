@@ -18,14 +18,15 @@ impl Service {
 			.map(|name| -> Result<_, crate::Error> {
 				let monitor = match &*name {
 					"configd" => crate::config::ServiceMonitor::PidFile("/var/run/configd.pid".into()),
+					"cron" => crate::config::ServiceMonitor::PidFile("/var/run/cron.pid".into()),
 					"dhcpd" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -user dhcpd ".into()),
 					"dhcpd6" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/dhcpd -6 -user dhcpd ".into()),
 					"ntpd" => crate::config::ServiceMonitor::CmdLine("/usr/local/sbin/ntpd ".into()),
 					"openssh" => crate::config::ServiceMonitor::PidFile("/var/run/sshd.pid".into()),
 					"radvd" => crate::config::ServiceMonitor::PidFile("/var/run/radvd.pid".into()),
 					"syslog-ng" => crate::config::ServiceMonitor::PidFile("/var/run/syslog-ng.pid".into()),
-					"syslogd" => crate::config::ServiceMonitor::PidFile("/var/run/syslog.pid".into()),
 					"unbound" => crate::config::ServiceMonitor::PidFile("/var/run/unbound.pid".into()),
+					"webgui" => crate::config::ServiceMonitor::PidFile("/var/run/lighty-webConfigurator.pid".into()),
 					name => return Err(format!("{name:?} is not recognized as a built-in service").into()),
 				};
 				Ok((name, monitor))

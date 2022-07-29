@@ -15,14 +15,15 @@ services:
   # Built-in services to monitor.
   builtin:
   - 'configd'
+  - 'cron'
   - 'dhcpd'
   - 'dhcpd6'
   - 'ntpd'
   - 'openssh'
   - 'radvd'
   - 'syslog-ng'
-  - 'syslogd'
   - 'unbound'
+  - 'webgui'
 
   # Custom services to monitor. Each entry must either have a `cmdline` or a `pidfile`.
   custom:
