@@ -29,6 +29,7 @@ pub(crate) struct Services {
 pub(crate) struct Ssh {
 	pub(crate) hostname: String,
 	pub(crate) username: String,
+	pub(crate) identity_comment: Option<String>,
 }
 
 #[derive(serde::Deserialize)]

@@ -9,6 +9,11 @@ ssh:
   # If you don't need either of those, remove those part of the program, and change this to any limited user with shell access instead.
   username: 'root'
 
+  # The comment of a particular identity in the SSH agent.
+  #
+  # If not specified, the first identity returned by the agent is used.
+  # identity_comment: 'example@example.com'
+
 
 # Services to monitor.
 services:

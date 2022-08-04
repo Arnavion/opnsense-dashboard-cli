@@ -59,7 +59,7 @@ fn main() -> Result<(), Error> {
 	let mut previous_terminal_size = None;
 
 
-	let session = connect(&config.ssh.hostname, &config.ssh.username, Some(5000))?;
+	let session = connect(&config.ssh, Some(5000))?;
 
 
 	let opnconfig = opnconfig::OpnConfig::load(&session)?;
@@ -452,7 +452,7 @@ enum Endianness {
 	Little,
 }
 
-fn connect(hostname: &str, username: &str, timeout_ms: Option<u32>) -> Result<ssh2::Session, Error> {
+fn connect(config::Ssh { hostname, username, identity_comment }: &config::Ssh, timeout_ms: Option<u32>) -> Result<ssh2::Session, Error> {
 	let conn = std::net::TcpStream::connect(hostname)?;
 
 	let mut session = ssh2::Session::new()?;
@@ -462,9 +462,18 @@ fn connect(hostname: &str, username: &str, timeout_ms: Option<u32>) -> Result<ss
 	}
 
 	session.handshake()?;
-	session.userauth_agent(username)?;
 
-	Ok(session)
+	let mut agent = session.agent()?;
+	agent.connect()?;
+	agent.list_identities()?;
+	for identity in agent.identities()? {
+		if identity_comment.as_deref().map_or(true, |identity_comment| identity.comment() == identity_comment) {
+			agent.userauth(username, &identity)?;
+			return Ok(session);
+		}
+	}
+
+	Err("could not find matching identity".into())
 }
 
 trait Parse: Sized {
