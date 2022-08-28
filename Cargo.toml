@@ -5,11 +5,19 @@ authors = ["Arnavion <me@arnavion.dev>"]
 edition = "2021"
 
 [dependencies]
-backtrace = "0.3"
-dirs = "4"
-roxmltree = { version = "0.15", features = ["std"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-serde_yaml = "0.9"
-ssh2 = "0.9"
-terminal_size = "0.2"
+backtrace = { version = "0.3", default-features = false, features = [
+	"std",
+] }
+dirs = { version = "4", default-features = false }
+roxmltree = { version = "0.15", default-features = false, features = [
+	"std",
+] }
+serde = { version = "1", default-features = false, features = [
+	"derive",
+] }
+serde_json = { version = "1", default-features = false, features = [
+	"std",
+] }
+serde_yaml = { version = "0.9", default-features = false }
+ssh2 = { version = "0.9", default-features = false }
+terminal_size = { version = "0.2", default-features = false }
