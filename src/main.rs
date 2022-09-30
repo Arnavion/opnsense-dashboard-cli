@@ -54,9 +54,11 @@ fn main() -> Result<(), Error> {
 	let config = config::Config::load()?;
 
 
-	let mut stdout = std::io::stdout().lock();
+	let stdout = std::io::stdout().lock();
+	let stdout = terminal::AlternateScreen::new(stdout)?;
+	let mut stdout = terminal::NoWraparound::new(stdout)?;
 
-	let mut previous_terminal_size = None;
+	let mut previous_terminal_width = None;
 
 
 	let session = connect(&config.ssh, Some(5000))?;
@@ -64,8 +66,6 @@ fn main() -> Result<(), Error> {
 
 	let opnconfig = opnconfig::OpnConfig::load(&session)?;
 
-
-	stdout.write_all(b"\x1B[1;1H\x1B[3J\x1B[?7l")?;
 
 	let version_info::VersionInfo {
 		version: ssh_exec::version::Version { product_arch, product_name, product_version },
@@ -153,12 +153,12 @@ fn main() -> Result<(), Error> {
 		// In either case, triggering a resize of the dashboard will fix the output.
 
 
-		let terminal_size = terminal_size::terminal_size().map(|(width, height)| (width.0, height.0)).ok_or("not a TTY")?;
-		if previous_terminal_size == Some(terminal_size) {
+		let terminal_width: usize = terminal::Terminal::width(&stdout)?;
+		if previous_terminal_width == Some(terminal_width) {
 			output.extend_from_slice(b"\x1B[3;1H");
 		}
 		else {
-			output.extend_from_slice(b"\x1B[1;1H\x1B[2J");
+			output.extend_from_slice(b"\x1B[2J\x1B[3J\x1B[1;1H");
 			writeln!(output, "Version       : {product_name} {product_version}-{product_arch}")?;
 			writeln!(output, "                {os_base_version}")?;
 		}
@@ -335,7 +335,7 @@ fn main() -> Result<(), Error> {
 			output.extend_from_slice(b"\n\x1B[KServices      :");
 
 			let num_services_per_row =
-				usize::from(terminal_size.0)
+				terminal_width
 				.saturating_sub("Services      : ".len())
 				.saturating_sub(max_service_name_len)
 				/ (max_service_name_len + 2)
@@ -411,7 +411,7 @@ fn main() -> Result<(), Error> {
 		stdout.write_all(&output)?;
 		stdout.flush()?;
 		output.clear();
-		previous_terminal_size = Some(terminal_size);
+		previous_terminal_width = Some(terminal_width);
 
 
 		previous = now;
