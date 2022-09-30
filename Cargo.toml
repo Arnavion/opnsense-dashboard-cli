@@ -5,9 +5,6 @@ authors = ["Arnavion <me@arnavion.dev>"]
 edition = "2021"
 
 [dependencies]
-backtrace = { version = "0.3", default-features = false, features = [
-	"std",
-] }
 dirs = { version = "4", default-features = false }
 roxmltree = { version = "0.15", default-features = false, features = [
 	"std",

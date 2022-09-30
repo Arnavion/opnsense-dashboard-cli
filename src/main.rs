@@ -419,21 +419,25 @@ fn main() -> Result<(), Error> {
 	}
 }
 
-struct Error(Box<dyn std::error::Error>, backtrace::Backtrace);
+struct Error {
+	inner: Box<dyn std::error::Error>,
+}
 
 impl std::fmt::Debug for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		writeln!(f, "{}", self.0)?;
+		std::fmt::Display::fmt(self, f)
+	}
+}
 
-		let mut source = self.0.source();
+impl std::fmt::Display for Error {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		writeln!(f, "{}", self.inner)?;
+
+		let mut source = self.inner.source();
 		while let Some(err) = source {
 			writeln!(f, "caused by: {err}")?;
 			source = err.source();
 		}
-
-		writeln!(f)?;
-
-		writeln!(f, "{:?}", self.1)?;
 
 		Ok(())
 	}
@@ -441,7 +445,9 @@ impl std::fmt::Debug for Error {
 
 impl<E> From<E> for Error where E: Into<Box<dyn std::error::Error>> {
 	fn from(err: E) -> Self {
-		Error(err.into(), Default::default())
+		Error {
+			inner: err.into(),
+		}
 	}
 }
 
