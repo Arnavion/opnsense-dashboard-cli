@@ -55,8 +55,9 @@ fn main() -> Result<(), Error> {
 
 
 	let stdout = std::io::stdout().lock();
-	let stdout = terminal::AlternateScreen::new(stdout)?;
-	let mut stdout = terminal::NoWraparound::new(stdout)?;
+	let mut terminfo = terminal::terminfo::Terminfo::from_env()?;
+	let stdout = terminal::VtMode::new(stdout, terminfo.alternate_screen())?;
+	let mut stdout = terminal::VtMode::new(stdout, terminfo.no_wraparound())?;
 
 	let mut previous_terminal_width = None;
 
@@ -158,7 +159,8 @@ fn main() -> Result<(), Error> {
 			output.extend_from_slice(b"\x1B[3;1H");
 		}
 		else {
-			output.extend_from_slice(b"\x1B[2J\x1B[3J\x1B[1;1H");
+			output.extend_from_slice(terminfo.clear_screen().to_bytes());
+			output.extend_from_slice(terminfo.clear_scrollback().to_bytes());
 			writeln!(output, "Version       : {product_name} {product_version}-{product_arch}")?;
 			writeln!(output, "                {os_base_version}")?;
 		}
