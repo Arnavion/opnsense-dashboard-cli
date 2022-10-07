@@ -154,13 +154,16 @@ fn main() -> Result<(), Error> {
 		// In either case, triggering a resize of the dashboard will fix the output.
 
 
+		let (begin_sync, _) = terminfo.sync()?;
+		output.write_all(begin_sync)?;
+
 		let terminal_width: usize = terminal::Terminal::width(&stdout)?;
 		if previous_terminal_width == Some(terminal_width) {
 			output.extend_from_slice(b"\x1B[3;1H");
 		}
 		else {
-			output.extend_from_slice(terminfo.clear_screen().to_bytes());
-			output.extend_from_slice(terminfo.clear_scrollback().to_bytes());
+			output.extend_from_slice(terminfo.clear_screen());
+			output.extend_from_slice(terminfo.clear_scrollback());
 			writeln!(output, "Version       : {product_name} {product_version}-{product_arch}")?;
 			writeln!(output, "                {os_base_version}")?;
 		}
@@ -409,6 +412,9 @@ fn main() -> Result<(), Error> {
 			}
 		}
 
+
+		let (_, end_sync) = terminfo.sync()?;
+		output.write_all(end_sync)?;
 
 		stdout.write_all(&output)?;
 		stdout.flush()?;
