@@ -141,9 +141,10 @@ fn main() -> Result<(), Error> {
 
 		// Note:
 		//
-		// We don't clear the screen with [2J every time because it's slow in some terminal emulators, like tmux, and causes flickering.
-		// We only do this when the screen size changes. At other times, we leave the first two lines of version info intact (since they're constant),
-		// reset the cursor to just after the version info, and use [K to clear each line before we write a new one.
+		// We don't clear_screen every time because it's slow in some terminal emulators, like tmux, and causes flickering.
+		// sync makes it better on terminal emulators that support it, but tmux doesn't. So we only do clear_screen when the screen size changes.
+		// At other times, we leave the first two lines of version info intact (since they're constant),
+		// reset the cursor to just after the version info, and clear_line each line before we write a new one.
 		//
 		// The disadvantage of this method is that it relies on the number of output lines being constant.
 		// There are two situations where this assumption doesn't hold:
@@ -159,7 +160,7 @@ fn main() -> Result<(), Error> {
 
 		let terminal_width: usize = terminal::Terminal::width(&stdout)?;
 		if previous_terminal_width == Some(terminal_width) {
-			output.extend_from_slice(b"\x1B[3;1H");
+			terminfo.move_cursor(2, 0, &mut output)?;
 		}
 		else {
 			output.extend_from_slice(terminfo.clear_screen());
@@ -172,9 +173,10 @@ fn main() -> Result<(), Error> {
 		{
 			let uptime = now.duration_since(boot_time.0)?;
 			let uptime = uptime.as_secs();
+			output.extend_from_slice(terminfo.clear_line());
 			write!(
 				output,
-				"\x1B[KUptime        : {} days {:02}:{:02}:{:02}",
+				"Uptime        : {} days {:02}:{:02}:{:02}",
 				uptime / (24 * 60 * 60),
 				(uptime % (24 * 60 * 60)) / (60 * 60),
 				(uptime % (60 * 60)) / 60,
@@ -184,7 +186,9 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KCPU usage     : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"CPU usage     : ");
 			if let Some(cpu_usage_percent) = cpu.usage_percent() {
 				let cpu_usage_color = get_color_for_usage(cpu_usage_percent);
 				write!(output, "\x1B[{cpu_usage_color}m{cpu_usage_percent:5.1} %\x1B[0m")?;
@@ -197,32 +201,42 @@ fn main() -> Result<(), Error> {
 
 		{
 			let (memory_usage_percent, memory_usage_color) = usage(memory.used_pages as f32, memory.num_pages as f32);
-			write!(output, "\n\x1B[KMemory usage  : \x1B[{memory_usage_color}m{memory_usage_percent:5.1} % of {} MiB\x1B[0m", memory.physical / 1_048_576)?;
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			write!(output, "Memory usage  : \x1B[{memory_usage_color}m{memory_usage_percent:5.1} % of {} MiB\x1B[0m", memory.physical / 1_048_576)?;
 		}
 
 
 		{
 			let states_max = (memory.physical / 10_485_760) * 1000;
 			let (states_usage_percent, states_usage_color) = usage(states_used as f32, states_max as f32);
-			write!(output, "\n\x1B[KStates table  : \x1B[{states_usage_color}m{states_usage_percent:5.1} % ({states_used:7} / {states_max:7})\x1B[0m")?;
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			write!(output, "States table  : \x1B[{states_usage_color}m{states_usage_percent:5.1} % ({states_used:7} / {states_max:7})\x1B[0m")?;
 		}
 
 
 		{
 			let (mbufs_usage_percent, mbufs_usage_color) = usage(mbufs_used as f32, mbufs_max as f32);
-			write!(output, "\n\x1B[KMBUF usage    : \x1B[{mbufs_usage_color}m{mbufs_usage_percent:5.1} % ({mbufs_used:7} / {mbufs_max:7})\x1B[0m")?;
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			write!(output, "MBUF usage    : \x1B[{mbufs_usage_color}m{mbufs_usage_percent:5.1} % ({mbufs_used:7} / {mbufs_max:7})\x1B[0m")?;
 		}
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KDisk usage    : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Disk usage    : ");
 			let max_mount_point_len = filesystems.iter().map(|filesystem| filesystem.mounted_on.len()).max().unwrap_or_default();
 			for (i, filesystem) in filesystems.into_iter().enumerate() {
 				let filesystem_space_used = filesystem.used_blocks;
 				let filesystem_space_max = filesystem.total_blocks;
 				let (filesystem_space_usage_percent, filesystem_space_usage_color) = usage(filesystem_space_used as f32, filesystem_space_max as f32);
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				write!(output,
@@ -235,13 +249,17 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KSMART status  : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"SMART status  : ");
 			for (i, disk::Disk { name, serial_number, smart_passed, .. }) in disks.iter().enumerate() {
 				let disk_status_color = get_color_for_up_down(*smart_passed);
 				let disk_smart_status = if *smart_passed { "PASSED" } else { "FAILED" };
 
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				write!(output, "\x1B[{disk_status_color}m{name:>max_disk_name_len$} {serial_number:max_disk_serial_number_len$} {disk_smart_status}\x1B[0m")?;
@@ -250,7 +268,9 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KTemperatures  : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Temperatures  : ");
 
 			let thermal_sensors =
 				temperature_sysctls.iter().map(|temperature_sysctl::TemperatureSysctl { name, value }| {
@@ -266,7 +286,9 @@ fn main() -> Result<(), Error> {
 				let thermal_sensor_color = get_color_for_temperature(thermal_sensor_value);
 
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				write!(output, "\x1B[{thermal_sensor_color}m{thermal_sensor_name:>max_thermal_sensor_name_len$} : {thermal_sensor_value:5.1} \u{00B0}C\x1B[0m")?;
@@ -275,11 +297,15 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KInterfaces    : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Interfaces    : ");
 
 			for (i, (interface_name, interface)) in interfaces.iter_mut().enumerate() {
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				let interface_status_color = get_color_for_up_down(interface.error.is_none());
@@ -301,9 +327,11 @@ fn main() -> Result<(), Error> {
 
 				for (i, address) in interface.addresses().enumerate() {
 					if i > 0 {
+						output.push(b'\n');
+						output.extend_from_slice(terminfo.clear_line());
 						write!(
 							output,
-							"\n\x1B[K                \x1B[{interface_status_color}m{:>max_interface_name_len$}                                 ",
+							"                \x1B[{interface_status_color}m{:>max_interface_name_len$}                                 ",
 							"",
 						)?;
 					}
@@ -315,11 +343,15 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KGateways      : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Gateways      : ");
 
 			for (i, (name, gateway)) in gateways.iter().enumerate() {
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				match gateway {
@@ -337,7 +369,9 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KServices      :");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Services      :");
 
 			let num_services_per_row =
 				terminal_width
@@ -358,7 +392,9 @@ fn main() -> Result<(), Error> {
 					let service_color = get_color_for_up_down(service.is_running);
 
 					if i > 0 && j == 0 {
-						output.extend_from_slice(b"\n\x1B[K               ");
+						output.push(b'\n');
+						output.extend_from_slice(terminfo.clear_line());
+						output.extend_from_slice(b"               ");
 					}
 
 					write!(output, " \x1B[{service_color}m{:max_service_name_len$}\x1B[0m ", service.name)?;
@@ -368,11 +404,15 @@ fn main() -> Result<(), Error> {
 
 
 		{
-			output.extend_from_slice(b"\n\x1B[KFirewall logs : ");
+			output.push(b'\n');
+			output.extend_from_slice(terminfo.clear_line());
+			output.extend_from_slice(b"Firewall logs : ");
 
 			for (i, firewall_log) in firewall_logs.iter().enumerate() {
 				if i > 0 {
-					output.extend_from_slice(b"\n\x1B[K                ");
+					output.push(b'\n');
+					output.extend_from_slice(terminfo.clear_line());
+					output.extend_from_slice(b"                ");
 				}
 
 				let firewall_log_color = get_color_for_up_down(match firewall_log.action {
