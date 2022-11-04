@@ -209,7 +209,7 @@ fn main() -> Result<(), Error> {
 
 		{
 			let states_max = (memory.physical / 10_485_760) * 1000;
-			let (states_usage_percent, states_usage_color) = usage(states_used as f32, states_max as f32);
+			let (states_usage_percent, states_usage_color) = usage(states_used, states_max as f32);
 			output.push(b'\n');
 			output.extend_from_slice(terminfo.clear_line());
 			write!(output, "States table  : \x1B[{states_usage_color}m{states_usage_percent:5.1} % ({states_used:7} / {states_max:7})\x1B[0m")?;
@@ -629,11 +629,11 @@ impl std::fmt::Display for FirewallLogsSource {
 	#[allow(clippy::many_single_char_names)]
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self.0.ip() {
-			std::net::IpAddr::V4(addr) => write!(f, "{}", addr),
+			std::net::IpAddr::V4(addr) => write!(f, "{addr}"),
 			std::net::IpAddr::V6(addr) => {
 				let [a, b, c, d, ..] = addr.segments();
 				let addr = std::net::Ipv6Addr::new(a, b, c, d, 0, 0, 0, 0);
-				write!(f, "{}/64", addr)
+				write!(f, "{addr}/64")
 			},
 		}
 	}
