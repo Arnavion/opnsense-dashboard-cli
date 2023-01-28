@@ -384,10 +384,7 @@ fn main() -> Result<(), Error> {
 			for i in 0..num_services_rows {
 				for j in 0..num_services_per_row {
 					let service_index = i + num_services_rows * j;
-					let service = match services.get(service_index) {
-						Some(service) => service,
-						None => break,
-					};
+					let Some(service) = services.get(service_index) else { break; };
 
 					let service_color = get_color_for_up_down(service.is_running);
 
