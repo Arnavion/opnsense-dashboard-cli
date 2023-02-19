@@ -1,3 +1,11 @@
+This is no longer maintained since I've switched to Debian. OPNsense has turned out to be insecure, and is run by people who do not know how to maintain an operating system or have an intelligent conversation: https://github.com/opnsense/ports/issues/168
+
+For Linux routers like Debian, some of the functionality of this dashboard is already present in [hwtop,](https://github.com/Arnavion/hwtop) namely CPU usage, temperatures and interface traffic stats. I plan to add disk usage and interface IPs to hwtop eventually. Services and firewall logs are better served through bespoke shell scripts that match what your router uses for service management and routing. For example, a systemd-using router can monitor services using `systemctl is-running`, and an nftables- / firewalld-using router can monitor firewall logs using `journalctl -ft kernel --grep='_DROP:'`.
+
+If you have questions about this repository, open an issue at https://github.com/Arnavion/archived-repos-issues
+
+---
+
 The OPNsense status dashboard in your terminal instead of a web browser.
 
 
